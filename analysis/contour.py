@@ -18,7 +18,7 @@ SELECTED_PART = "Part_01"
 IMG_NAME_LST = ['3789366028', '3727258020',
 				'3727258028', '3727258038',
 				'3727258070']
-SELECTED_IDX = 4
+SELECTED_IDX = 2
 front_img_name = os.path.join(DATA_FOLDER, SELECTED_PART, 'images/cgc', IMG_NAME_LST[SELECTED_IDX], 'front.jpg')
 back_img_name = os.path.join(DATA_FOLDER, SELECTED_PART, 'images/cgc', IMG_NAME_LST[SELECTED_IDX], 'back.jpg')
 
@@ -110,7 +110,7 @@ plt.imsave("./outputs/test.png", gray_lab_image)
 edged = cv2.Canny(gray_lab_image, 0, 45)
 plt.imsave("./outputs/test.png", edged)
 
-adaptive_binary = cv2.adaptiveThreshold(edged, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 11,3)
+adaptive_binary = cv2.adaptiveThreshold(edged, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11,3)
 # ret, adaptive_binary = cv2.threshold(cropped_gray_image,133,255,cv2.THRESH_BINARY)
 plt.imsave("./outputs/test.png", adaptive_binary)
 # %%
@@ -123,17 +123,17 @@ max_ = np.amax(box, axis=0)
 min_ = np.amin(box, axis=0)
 pts1 = np.zeros_like(box)
 for p in box:
-	if p[0] == min_[0] and p[1] == min_[1]:
+	if p[0] <= 100.0 and p[1] <= 100.0:
 		pts1[0] = p
-	elif p[0] == max_[0] and p[1] == min_[1]:
+	elif p[1] <= 100.0:
 		pts1[1] = p
-	elif p[0] == max_[0] and p[1] == max_[1]:
-		pts1[2] = p
-	elif p[0] == min_[0] and p[1] == max_[1]:
+	elif p[0] <= 100.0:
 		pts1[3] = p
+	else:
+		pts1[2] = p
 
-PSA_WIDTH = int(max_[0] - min_[0])
-PSA_HEIGHT = int(max_[1] - min_[1])
+PSA_WIDTH = np.linalg.norm(pts1[1]-pts1[0])
+PSA_HEIGHT = np.linalg.norm(pts1[3]-pts1[0])
 pts2 = np.float32([[0, 0], [PSA_WIDTH, 0], [PSA_WIDTH, PSA_HEIGHT], [0, PSA_HEIGHT]])
 M = cv2.getPerspectiveTransform(pts1, pts2)
 result = cv2.warpPerspective(cropped_image, M, (PSA_WIDTH, PSA_HEIGHT))
