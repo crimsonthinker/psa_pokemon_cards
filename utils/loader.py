@@ -1,14 +1,17 @@
 from matplotlib.image import imread, imsave
 import glob
 import os
+import cv2
 import tensorflow as tf
 import random
 import numpy as np
 import shutil
 import pandas as pd
 from pathlib import Path
+from random import shuffle
 
 from utils.utilities import *
+from utils.preprocessor import *
 
 class ImageLoader(object):
     """An image preprocessor class for preprocessing image dataset
@@ -58,6 +61,8 @@ class ImageLoader(object):
         #read images
         self._images = []
         self._identifiers = []
+        i = 0
+
         for name in glob.glob(os.path.join(self._train_directory, '*')):
             # check if name is a folder
             if os.path.isdir(name):
@@ -70,11 +75,20 @@ class ImageLoader(object):
                 preprocessed_image = self._preprocess(back_image, front_image)
 
                 # append the preprocessed image
-                self._images.append(preprocessed_image)
-                self._identifiers.append(identifier)
+                if preprocessed_image is not None:
+                    self._images.append(preprocessed_image)
+                    self._identifiers.append(identifier)
+            i = i + 1
+            if i == 50:
+                break
+        max_height = max([x.shape[0] for x in self._images])
+        max_width = max([x.shape[1] for x in self._images])
+
+        self._images = [np.pad(a, ((0, max_height - a.shape[0]), (0, max_width - a.shape[1]), (0,0)), 'constant', constant_values=0) for a in self._images]
 
         # shuffle using list of indices
-        shuffle_indices = random.shuffe(list(range(len(self._images))))
+        shuffle_indices = list(range(len(self._images)))
+        shuffle(shuffle_indices)
 
         # convert list to numpy
         self._images = np.array(self._images)[shuffle_indices]
@@ -93,20 +107,21 @@ class ImageLoader(object):
         Return:
             (np.ndarray) : A preprocessed image
         """
-        return np.array
+        result = extract_front_contour(front_image)
+        return result
 
-    def _save(self):
+    def _save(self, score_type):
         """Save data to preprocessed folder
         """
-        root_train_path = os.path.join(self._preprocessed_dataset_path, 'train')
+        root_train_path = os.path.join(self._preprocessed_dataset_path, score_type, 'train')
         ensure_dir(root_train_path)
         for i, train_image in enumerate(self._train_data):
-            imsave(train_image, os.path.join(root_train_path,f'{self._identifiers[i]}.jpg'))
+            cv2.imwrite(os.path.join(root_train_path,f'{self._identifiers[i]}.jpg'), train_image)
 
-        root_val_path = os.path.join(self._preprocessed_dataset_path, 'val')
+        root_val_path = os.path.join(self._preprocessed_dataset_path, score_type, 'val')
         ensure_dir(root_val_path)
         for i, val_image in enumerate(self._val_data):
-            imsave(val_image, os.path.join(root_val_path,f'{self._identifiers[len(self._train_data) + i]}.jpg'))
+            cv2.imwrite(os.path.join(root_val_path,f'{self._identifiers[len(self._train_data) + i]}.jpg'), val_image)
                 
     def _load(self, score_type):
         """Perform loading the images and split into datasets
@@ -166,7 +181,12 @@ class ImageLoader(object):
             self._split()
 
             self._logger.info("Save dataset to folder")
-            self._save()
+            self._save(score_type)
 
         self._logger.info(f"Load images into train and val data")
-        self._load(score_type)
+        # self._load(score_type)
+
+
+if __name__ == '__main__':
+    il = ImageLoader(train_directory = 'data')
+    il.load('Centering')
