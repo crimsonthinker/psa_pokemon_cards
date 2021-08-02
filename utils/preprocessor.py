@@ -1,9 +1,55 @@
 import numpy as np
 import cv2
 
-def extract_front_contour(image : np.ndarray):
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+def extract_front_contour_for_pop_image(image : np.ndarray):
+    """Extract cards from images
 
+    Args:
+        image (np.ndarray): [description]
+
+    Returns:
+        [type]: [description]
+    """
+    # to grayscale image
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+
+    # get edges
+    _, otsu_grad = cv2.threshold(gray,0,255,cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # get contours
+    contours, _ = cv2.findContours(otsu_grad, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    # image size
+    height, width = otsu_grad.shape
+    image_area = height * width
+
+    # sort contour index
+    index_sort = sorted(range(len(contours)), key=lambda i : cv2.contourArea(contours[i]),reverse=True)
+    contours_sort = [contours[i] for i in index_sort]
+
+    # get area and perimeter
+    contour_peri = [cv2.arcLength(contours_sort[i], True) for i in range(len(index_sort))]
+    approx = [cv2.approxPolyDP(contours_sort[i], 0.001 * contour_peri[i], True) for i in range(len(index_sort))]
+    bounding_box = [cv2.boundingRect(approx[i]) for i in range(len(index_sort))]
+    contour_area = [bounding_box[i][2] * bounding_box[i][3]  for i in range(len(index_sort))]
+    is_card = list(filter(lambda x : x >= 0, [i if contour_area[i] >= 0.48 * image_area and contour_area[i] <= 0.65 * image_area else -1 for i in range(len(index_sort))]))
+
+    if len(is_card) > 0:
+        is_card_index = is_card[-1]
+        x,y,w,h = bounding_box[is_card_index]
+        return image[int(y) : int(y + h), int(x) : int(x + w)]
+    else:
+        return None
+
+def extract_front_contour_for_dim_image(image : np.ndarray):
+    """[summary]
+
+    Args:
+        image (np.ndarray): [description]
+
+    Returns:
+        [type]: [description]
+    """
     # to grayscale image
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 

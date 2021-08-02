@@ -47,6 +47,7 @@ class ImageLoader(object):
         self._images = None
         self._images_file_name = None
         self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
+        self._grades.index = [str(x) for x in self._grades.index]
         self._identifiers = []
 
 
@@ -81,17 +82,11 @@ class ImageLoader(object):
             i = i + 1
             if i == 50:
                 break
-        max_height = max([x.shape[0] for x in self._images])
-        max_width = max([x.shape[1] for x in self._images])
-
-        self._images = [np.pad(a, ((0, max_height - a.shape[0]), (0, max_width - a.shape[1]), (0,0)), 'constant', constant_values=0) for a in self._images]
-
         # shuffle using list of indices
         shuffle_indices = list(range(len(self._images)))
         shuffle(shuffle_indices)
 
-        # convert list to numpy
-        self._images = np.array(self._images)[shuffle_indices]
+        self._images = [self._images[i] for i in shuffle_indices]
         self._identifiers = [self._identifiers[i] for i in shuffle_indices]
 
         num_of_images = len(self._images)
@@ -107,21 +102,68 @@ class ImageLoader(object):
         Return:
             (np.ndarray) : A preprocessed image
         """
-        result = extract_front_contour(front_image)
-        return result
+        front_card = None
+        front_card = extract_front_contour_for_pop_image(front_image)
+        if front_card is None:
+            front_card = extract_front_contour_for_dim_image(front_image)
 
-    def _save(self, score_type):
+        back_card = extract_front_contour_for_pop_image(back_image)
+        if back_card is None:
+            back_card = extract_front_contour_for_dim_image(back_image)
+
+        if front_card is not None and back_card is not None:
+            # merge two image
+            front_height, front_width, _ = front_card.shape
+            back_height, back_width, _ = back_card.shape
+            max_height = max(front_height, back_height)
+            max_width = max(front_width, back_width)
+            front_top = int((max_height - front_height) / 2)
+            front_bottom = int((max_height - front_height) / 2) + ((max_height - front_height) % 2)
+            back_top = int((max_height - back_height) / 2)
+            back_bottom = int((max_height - back_height) / 2) + ((max_height - back_height) % 2)
+
+            front_left = int((max_width - front_width) / 2)
+            front_right = int((max_width - front_width) / 2) + ((max_width - front_width) % 2)
+            back_left = int((max_width - back_width) / 2)
+            back_right = int((max_width - back_width) / 2) + ((max_width - back_width) % 2)
+
+            front_card = cv2.copyMakeBorder(
+                front_card, 
+                front_top, 
+                front_bottom, 
+                front_left, 
+                front_right, 
+                cv2.BORDER_REPLICATE
+            )
+
+            back_card = cv2.copyMakeBorder(
+                back_card,
+                back_top,
+                back_bottom,
+                back_left,
+                back_right,
+                cv2.BORDER_REPLICATE
+            )
+
+            merge_image = np.concatenate((front_card, back_card), axis = 1) # merge
+            return merge_image
+        else:
+            return None
+
+    def _save(self):
         """Save data to preprocessed folder
         """
-        root_train_path = os.path.join(self._preprocessed_dataset_path, score_type, 'train')
+        root_train_path = os.path.join(self._preprocessed_dataset_path, 'train')
         ensure_dir(root_train_path)
         for i, train_image in enumerate(self._train_data):
-            cv2.imwrite(os.path.join(root_train_path,f'{self._identifiers[i]}.jpg'), train_image)
+            rgb_image = cv2.cvtColor(train_image, cv2.COLOR_BGR2RGB)
+            cv2.imwrite(os.path.join(root_train_path,f'{self._identifiers[i]}.jpg'), rgb_image)
 
-        root_val_path = os.path.join(self._preprocessed_dataset_path, score_type, 'val')
+        root_val_path = os.path.join(self._preprocessed_dataset_path, 'val')
         ensure_dir(root_val_path)
         for i, val_image in enumerate(self._val_data):
-            cv2.imwrite(os.path.join(root_val_path,f'{self._identifiers[len(self._train_data) + i]}.jpg'), val_image)
+            rgb_image = cv2.cvtColor(val_image, cv2.COLOR_BGR2RGB)
+            cv2.imwrite(os.path.join(root_val_path,f'{self._identifiers[len(self._train_data) + i]}.jpg'), rgb_image)
                 
     def _load(self, score_type):
         """Perform loading the images and split into datasets
@@ -130,30 +172,43 @@ class ImageLoader(object):
 
         # get labels from train
         train_path = os.path.join(self._preprocessed_dataset_path, 'train')
-        train_identifier_list = sorted([Path(name).stem for name in glob.glob(train_path)])
+        train_identifier_list = sorted([Path(name).stem for name in glob.glob(os.path.join(train_path, "*"))])
+        train_score_list = [int(self._grades.loc[x][score_type] * 2) for x in train_identifier_list]
 
         val_path = os.path.join(self._preprocessed_dataset_path, 'val')
-        val_identifier_list = sorted([Path(name).stem for name in glob.glob(val_path)])
+        val_identifier_list = sorted([Path(name).stem for name in glob.glob(os.path.join(val_path, "*"))])
+        val_score_list = [int(self._grades.loc[x][score_type] * 2) for x in val_identifier_list]
 
-        self._train_img_ds = tf.keras.preprocessing.image_dataset_from_directory(
-            train_path,
-            labels = self._grades.loc[train_identifier_list][score_type],
-            label_mode = 'categorical',
-            image_size = (self.img_height, self.img_width),
-            batch_size = self._batch_size
+        def _parse(filename : str, label : int):
+            image_string = tf.io.read_file(filename)
+            image_decoded = tf.image.decode_jpeg(image_string, channels=3)
+            image_resized = tf.image.resize(image_decoded, (self.img_height,self.img_width))
+            image = tf.cast(image_resized, tf.float32)
+            return image, label
+
+        def _read_dataset(name_list : list, score_list : list):
+            data = tf.data.Dataset.from_tensor_slices((
+                name_list,
+                score_list
+            ))
+            return data.map(_parse)
+        
+        self._train_img_ds = _read_dataset(
+            train_identifier_list,
+            train_score_list
         )
-        self.class_names = self._train_img_ds.class_names
+
+        self.class_names = list(range(0, 21))
         self._train_img_ds = self._train_img_ds.cache().shuffle(100).prefetch(buffer_size = autotune)
         
-        self._validation_img_ds = tf.keras.preprocessing.image_dataset_from_directory(
-            val_path,
-            labels = self._grades.loc[val_identifier_list][score_type],
-            label_mode = 'categorical',
-            image_size = (self.img_height, self.img_width),
-            batch_size = self._batch_size
+        self._validation_img_ds = _read_dataset(
+            val_identifier_list,
+            val_score_list
         )
 
         self._validation_img_ds = self._validation_img_ds.cache().prefetch(buffer_size = autotune)
+
+        import pdb ; pdb.set_trace()
         
 
     def get_train_ds(self):
@@ -181,12 +236,12 @@ class ImageLoader(object):
             self._split()
 
             self._logger.info("Save dataset to folder")
-            self._save(score_type)
+            self._save()
 
         self._logger.info(f"Load images into train and val data")
-        # self._load(score_type)
+        self._load(score_type)
 
 
 if __name__ == '__main__':
-    il = ImageLoader(train_directory = 'data')
+    il = ImageLoader(train_directory = 'data', img_height = 256, img_width = 256)
     il.load('Centering')
