@@ -3,12 +3,12 @@ import glob
 import os
 import cv2
 import tensorflow as tf
-import random
 import numpy as np
 import shutil
 import pandas as pd
 from pathlib import Path
 from random import shuffle
+from tqdm import tqdm
 
 from utils.utilities import *
 from utils.preprocessor import *
@@ -33,7 +33,7 @@ class ImageLoader(object):
         """
         self._train_directory = kwargs.get('train_directory', None)
         self._grade_path = kwargs.get('grade_path', os.path.join('data', 'grades.csv'))
-        self._skip_preprocessing = kwargs.get('skip_reloading', False)
+        self._skip_preprocessing = kwargs.get('skip_preprocessing', False)
         self._preprocessed_dataset_path = '.preprocessed_train'
         if not self._skip_preprocessing:
             if os.path.exists(self._preprocessed_dataset_path):
@@ -49,12 +49,12 @@ class ImageLoader(object):
         self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
         self._grades.index = [str(x) for x in self._grades.index]
         self._identifiers = []
-
+        self.max_score = 10
 
         self.img_width = kwargs.get('img_width')
         self.img_height = kwargs.get('img_height')
 
-    def _split(self):
+    def _split_and_preprocess(self):
         """Split dataset into train and test dataset
         """
         # ensure directory
@@ -62,9 +62,10 @@ class ImageLoader(object):
         #read images
         self._images = []
         self._identifiers = []
-        i = 0
 
-        for name in glob.glob(os.path.join(self._train_directory, '*')):
+        extracted_images = 0
+        total_images = 0
+        for name in tqdm(glob.glob(os.path.join(self._train_directory, '*'))):
             # check if name is a folder
             if os.path.isdir(name):
                 _, identifier = name.split("/")
@@ -72,16 +73,18 @@ class ImageLoader(object):
                 front_image = os.path.join(name, "front.jpg")
                 back_image = imread(back_image)
                 front_image = imread(front_image)
-
                 preprocessed_image = self._preprocess(back_image, front_image)
 
                 # append the preprocessed image
                 if preprocessed_image is not None:
-                    self._images.append(preprocessed_image)
+                    resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
+                    self._images.append(resized_preprocessed_image)
                     self._identifiers.append(identifier)
-            i = i + 1
-            if i == 50:
-                break
+                    extracted_images += 1
+                total_images += 1
+
+        
+        print(f"{extracted_images}/{total_images} extracted")
         # shuffle using list of indices
         shuffle_indices = list(range(len(self._images)))
         shuffle(shuffle_indices)
@@ -170,21 +173,22 @@ class ImageLoader(object):
         """
         autotune = tf.data.AUTOTUNE
 
-        # get labels from train
+        # reverse the score during learning since we are using MAPE -> by reversing, small score (which is large score but reversed)
+        # will generate larger loss for the model
         train_path = os.path.join(self._preprocessed_dataset_path, 'train')
         train_identifier_list = sorted([Path(name).stem for name in glob.glob(os.path.join(train_path, "*"))])
-        train_score_list = [int(self._grades.loc[x][score_type] * 2) for x in train_identifier_list]
+        train_score_list = [self._grades.loc[x][score_type] / self.max_score for x in train_identifier_list]
 
         val_path = os.path.join(self._preprocessed_dataset_path, 'val')
         val_identifier_list = sorted([Path(name).stem for name in glob.glob(os.path.join(val_path, "*"))])
-        val_score_list = [int(self._grades.loc[x][score_type] * 2) for x in val_identifier_list]
+        val_score_list = [self._grades.loc[x][score_type] / self.max_score for x in val_identifier_list]
 
-        def _parse(filename : str, label : int):
+        def _parse(filename : str, label : float):
             image_string = tf.io.read_file(filename)
             image_decoded = tf.image.decode_jpeg(image_string, channels=3)
             image_resized = tf.image.resize(image_decoded, (self.img_height,self.img_width))
             image = tf.cast(image_resized, tf.float32)
-            return image, label
+            return image, tf.convert_to_tensor(label)
 
         def _read_dataset(name_list : list, score_list : list):
             data = tf.data.Dataset.from_tensor_slices((
@@ -192,23 +196,19 @@ class ImageLoader(object):
                 score_list
             ))
             return data.map(_parse)
-        
+
         self._train_img_ds = _read_dataset(
-            train_identifier_list,
+            sorted([name for name in glob.glob(os.path.join(train_path, "*"))]),
             train_score_list
         )
+        self._train_img_ds = self._train_img_ds.batch(self._batch_size).cache().shuffle(100).prefetch(buffer_size = autotune)
 
-        self.class_names = list(range(0, 21))
-        self._train_img_ds = self._train_img_ds.cache().shuffle(100).prefetch(buffer_size = autotune)
-        
         self._validation_img_ds = _read_dataset(
-            val_identifier_list,
+            sorted([name for name in glob.glob(os.path.join(val_path, "*"))]),
             val_score_list
         )
 
-        self._validation_img_ds = self._validation_img_ds.cache().prefetch(buffer_size = autotune)
-
-        import pdb ; pdb.set_trace()
+        self._validation_img_ds = self._validation_img_ds.batch(self._batch_size).cache().prefetch(buffer_size = autotune)
         
 
     def get_train_ds(self):
@@ -233,7 +233,7 @@ class ImageLoader(object):
 
         if not self._skip_preprocessing:
             self._logger.info(f"Perform splitting")
-            self._split()
+            self._split_and_preprocess()
 
             self._logger.info("Save dataset to folder")
             self._save()
@@ -243,5 +243,9 @@ class ImageLoader(object):
 
 
 if __name__ == '__main__':
-    il = ImageLoader(train_directory = 'data', img_height = 256, img_width = 256)
+    il = ImageLoader(
+        skip_preprocessing = True,
+        train_directory = 'data', 
+        img_height = 256, 
+        img_width = 256)
     il.load('Centering')

@@ -19,7 +19,7 @@ from utils.loader import *
 class VGG16Grader(object):
     def __init__(self, 
         grade_name : str,
-        class_names : list = [],
+        max_score : int = 10,
         img_height : int = 256, 
         img_width : int = 256, 
         dim : int = 3,
@@ -44,7 +44,7 @@ class VGG16Grader(object):
             ensure_dir(os.path.join('.checkpoints', self._model_name))
 
         self.grade_name = grade_name
-        self.class_names = class_names
+        self.max_score = max_score
 
         self.img_height = img_height
         self.img_width = img_width
@@ -75,12 +75,12 @@ class VGG16Grader(object):
 
         self._layer_only = tf.keras.Sequential([
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(128, 
+            tf.keras.layers.Dense(64, 
                 activation = 'relu',
                 kernel_regularizer = tf.keras.regularizers.l2(0.01)),
             tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Dropout(0.5),
-            tf.keras.layers.Dense(len(self.class_names), activation = 'softmax')
+            tf.keras.layers.Dropout(0.2),
+            tf.keras.layers.Dense(1, activation = 'sigmoid')
         ], name = 'meaty_layer')
 
         self._construct()
@@ -112,15 +112,10 @@ class VGG16Grader(object):
         self._model.compile(
             optimizer = tf.keras.optimizers.Adam(
                 learning_rate = lr_schedule),
-            loss = 'categorical_crossentropy',
-            metrics =
-                [
-                    'accuracy',
-                    tf.keras.metrics.TruePositives(),
-                    tf.keras.metrics.FalsePositives(),
-                    tf.keras.metrics.FalseNegatives(),
-                    tf.keras.metrics.TrueNegatives()
-                ]
+            loss = 'mse',
+            metrics = [
+                'mean_absolute_error'
+            ]
         )
 
     def get_summary(self):
@@ -135,8 +130,8 @@ class VGG16Grader(object):
                 Traning VGG16ImageGrader:
                     Image resolution (hxw): {self.img_height}x{self.img_width}
                     Grade name: {self.grade_name}
-                    Number of classes: {len(self.class_names)}
                     Number of epochs: {self._epochs}
+                    Maximum score label: {self.max_score}
                 Model summary:""")
             self._model.summary()
             self._data_augmentation.summary()
@@ -253,18 +248,13 @@ class VGG16Grader(object):
         else:
             self._logger.warn("Neither the model has been trained nor it has state.")
 
-    def save(self):
+    def save_metadata(self):
         # Update new root path
-        now = datetime.utcnow().strftime(SQL_TIMESTAMP)
-        self._root_path = os.path.join('.checkpoints', self._model.name, now)
-        ensure_dir(self._root_path)
-        self._logger.info(f"Saving the models and class names in {self._root_path}")
-        # save the meaty layer only
-        self._layer_only.save(self._root_path)
+        self._logger.info(f"Saving metadata in {self._root_path}")
         # save other metadata
         metadata = {
             'grade_name' : self.grade_name,
-            'class_names' : self.class_names,
+            'max_score' : self.max_score,
             'img_height' : self.img_height,
             'img_width' : self.img_width,
             'dim' : self.dim,
@@ -293,16 +283,20 @@ class VGG16Grader(object):
 
         # load the model
         self._root_path = os.path.join('.checkpoints', self._model_name, max_datetime)
-        self._layer_only = tf.keras.models.load_model(self._root_path)
+        model = tf.keras.models.load_model(self._root_path)
+        self._data_augmentation = model.layers[0]
+        self._base_model = model.layers[1]
+        self._layer_only = model.layers[2]
+        #read the metadata
         metadata = json.load(open(os.path.join(self._root_path, 'metadata.json'), 'r'))
         self.grade_name = metadata['grade_name']
-        self.class_names = metadata['class_names']
+        self.max_score = metadata['max_score']
         self.img_height = metadata['img_height']
         self.img_width = metadata['img_width']
         self.dim = metadata['dim']
         self.learning_rate = metadata['learning_rate']
         self._epochs = metadata['epochs']
-
+        # reconstruct the model
         self._construct()
 
     def predict(self, x : Union[np.ndarray, str], result_dir = None, batch_size = 32):

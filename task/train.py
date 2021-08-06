@@ -1,12 +1,12 @@
 import argparse
 from utils.loader import ImageLoader
-from trainers.vgg16_pokemon_grader import VGG16PokemonGrader
+from trainers.vgg16_grader import VGG16Grader
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default='simple_image_classifier', nargs='?',
+    parser.add_argument("--model", type=str, default='vgg16_grader', nargs='?',
         help="Model name for temple classification")
-    parser.add_argument("--skip_reloading", action='store_true', default = False,
+    parser.add_argument("--skip_preprocessing", action='store_true', default = False,
         help="Skip reloading images into default preprocessed image folder")
     parser.add_argument("--clean_log", action='store_true', default = False,
         help="Clean log folder")
@@ -16,49 +16,65 @@ if __name__ == '__main__':
         help="Save visualization result in .log folder")
     parser.add_argument("--visualize_result", action='store_true', default = False,
         help="Visualize the result")
-    parser.add_argument("--train_directory", type=str, default='temples-train-hard/train', nargs='?',
+    parser.add_argument("--train_directory", type=str, default='data', nargs='?',
         help="Training directory")
     parser.add_argument("--img_height", type=int, default=256, nargs='?',
         help="Image height for the training session")
     parser.add_argument("--img_width", type=int, default=256, nargs='?',
         help="Image width for the training session")
+    parser.add_argument("--dim", type=int, default=3, nargs='?',
+        help="Image didmension for the training session")
     parser.add_argument("--batch_size", type=int, default=32, nargs='?',
         help="Batch size for training session")
     parser.add_argument("--epochs", type=int, default=2, nargs='?',
         help="Number of epochs for training session")
-    parser.add_argument("--learning_rate", type=float, default=0.01, nargs='?',
+    parser.add_argument("--learning_rate", type=float, default=0.0001, nargs='?',
         help="Learning rate for the model")
+    parser.add_argument("--model_score_type", type=str, default=[], nargs='+',
+        help="Score type of the model. Leave blank if run all.")
     args = parser.parse_args()
 
-    # runt raining session
+    # run raining session
     image_dataset = ImageLoader(
-        skip_reloading = args.skip_reloading,
+        skip_preprocessing = args.skip_preprocessing,
         train_directory = args.train_directory,
         img_height = args.img_height,
         img_width = args.img_width,
         batch_size = args.batch_size
     )
-    # load the iamge from train directory
-    image_dataset.load()
 
-    if args.model == 'vgg16_pokemon_grader':
-        model = VGG16PokemonGrader(
-            class_names = image_dataset.class_names,
-            img_height = args.img_height,
-            img_width = args.img_width,
-            learning_rate = args.learning_rate,
-            epochs = args.epochs,
-            clean_log = args.clean_log,
-            clean_checkpoints = args.clean_checkpoints
-        )
+    if len(args.model_score_type) == 0:
+        score_types = ['Centering', 'Surface', 'Corners', 'Edges']
+    else:
+        score_types = args.model_score_type
 
-    model.train_and_evaluate(image_dataset)
+    for score_type in score_types:
+        print(f"Training dataset on score {score_type}")
+        # load the image from train directory
+        image_dataset.load(score_type)
 
-    # visualize results
-    if args.visualize_result or args.save_evaluation:
-        model.visualize_evaluation(
-            args.visualize_result,
-            args.save_evaluation)
-    
-    # save the model
-    model.save()
+        if args.model == 'vgg16_grader':
+            model = VGG16Grader(
+                grade_name = score_type,
+                max_score = image_dataset.max_score,
+                img_height = args.img_height,
+                img_width = args.img_width,
+                dim = args.dim,
+                learning_rate = args.learning_rate,
+                epochs = args.epochs,
+                clean_log = args.clean_log,
+                clean_checkpoints = args.clean_checkpoints
+            )
+
+        # train the model
+        # new model already been saved in this function
+        model.train_and_evaluate(image_dataset)
+
+        # visualize results
+        if args.visualize_result or args.save_evaluation:
+            model.visualize_evaluation(
+                args.visualize_result,
+                args.save_evaluation)
+        
+        # save the model
+        model.save_metadata()
