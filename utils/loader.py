@@ -84,7 +84,7 @@ class ImageLoader(object):
                 total_images += 1
 
         
-        print(f"{extracted_images}/{total_images} extracted")
+        self._logger.info(f"{extracted_images}/{total_images} extracted")
         # shuffle using list of indices
         shuffle_indices = list(range(len(self._images)))
         shuffle(shuffle_indices)
@@ -240,12 +240,3 @@ class ImageLoader(object):
 
         self._logger.info(f"Load images into train and val data")
         self._load(score_type)
-
-
-if __name__ == '__main__':
-    il = ImageLoader(
-        skip_preprocessing = True,
-        train_directory = 'data', 
-        img_height = 256, 
-        img_width = 256)
-    il.load('Centering')

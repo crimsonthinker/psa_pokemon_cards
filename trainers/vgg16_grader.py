@@ -9,6 +9,7 @@ import glob
 import json
 import pandas as pd
 from typing import Union
+import math
 
 from tensorflow.keras.applications import VGG16
 
@@ -299,67 +300,74 @@ class VGG16Grader(object):
         # reconstruct the model
         self._construct()
 
-    def predict(self, x : Union[np.ndarray, str], result_dir = None, batch_size = 32):
+    def predict(self, x : Union[np.ndarray, str], batch_size = 32):
         if isinstance(x, str):
             # glob files
             predicted_filenames = []
-            predictionss = []
+            images = []
+            for name in tqdm(glob.glob(os.path.join(x, '*'))):
+                try:
+                    img = tf.keras.preprocessing.image.load_img(
+                        name, target_size=(self.img_height, self.img_width)
+                    )
+                    images.append(tf.keras.preprocessing.image.img_to_array(img))
+                    predicted_filenames.append(os.path.basename(name))
+                except:
+                    continue
+            chunks = np.array_split(images, math.ceil(len(images) / batch_size))
+            file_chunks = np.array_split(predicted_filenames, math.ceil(len(predicted_filenames) / batch_size))
             image_predicted = 0
-            for dirpath, _, filenames in os.walk(x):
-                images = []
-                for i, filename in enumerate(filenames):
-                    loc = os.path.join(dirpath, filename)
+            result = pd.Series()
+            result.index.name = 'Identifier'
+            result.name = self.grade_name
+            self._logger.info('Start prediction')
+            for chunk, file_chunk in zip(chunks, file_chunks):
+                ims = np.stack(chunk)
+                predictions = self.predict(ims)
+                image_predicted += len(chunk)
+                print(f"Predicted {image_predicted} images")
+                for t, filename in enumerate(file_chunk):
+                    result.loc[os.path.splitext(filename)[0]] = predictions[t] 
 
-                    try:
-                        img = tf.keras.preprocessing.image.load_img(
-                            loc, target_size=(self.img_height, self.img_width)
-                        )
-                        images.append(tf.keras.preprocessing.image.img_to_array(img))
-                        predicted_filenames.append(filename)
-                    except:
-                        continue
-                    if len(images) == batch_size: #predict by chunks
-                        images = np.stack(images)
-                        predictions = self.predict(images)
-                        predictionss.append(predictions)
-                        image_predicted += len(images)
-                        images = []
-                        self._logger.info(f'{image_predicted} images predicted')
-                if len(images) > 0:
-                    images = np.stack(images)
-                    predictions = self.predict(images)
-                    predictionss.append(predictions)
-                    image_predicted += len(images)
-                    images = []
-                    self._logger.info(f'{image_predicted} images predicted')
-            predictions = tf.concat(predictionss, axis = 0)
-            #prepare for result directory
-            if result_dir is not None:
-                result = pd.DataFrame(columns = ['image_name', 'country'])
-            for i, (fname, prediction) in enumerate(zip(predicted_filenames,predictions)):
-                index = np.argmax(prediction)
-                score = np.max(prediction)
-                self._logger.info(f'{fname} : {self.class_names[index]} with confidence score of {round(score * 100, 2)}%')
-                if result_dir is not None:
-                    result.loc[i] = [fname,self.class_names[index]]
-
-            if result_dir is not None:
-                ensure_dir(result_dir)
-                result.to_csv(os.path.join(result_dir, 'result.csv'), index = False)
+            return result
         else:
+            def psa_score(p):
+                # squeeze
+                p = np.squeeze(p, axis = -1)
+                # rescale to 10
+                p = p * 10.0
+                # round by PSA scoring system
+                lower = np.floor(p)
+                upper = np.ceil(p)
+                lower_diff = np.absolute(lower - p)
+                upper_diff = np.absolute(upper - p)
+                mid_diff = np.absolute(((lower + upper) / 2) - p)
+                for i,(m,(l,u)) in enumerate(zip(mid_diff,zip(lower_diff, upper_diff))):
+                    if l == u: #exact score
+                        continue
+                    elif m == l or (m < l and m < u):
+                        p[i] = (math.floor(p[i]) + math.ceil(p[i])) / 2
+                    elif u <= m:
+                        p[i] = math.ceil(p[i])
+                    elif l < m and l < u:
+                        p[i] = math.ceil(p[i])
+
+                return p
+
             if x.ndim == 3:
-                # expand dimension of one image to (1, img_height, img_width, 3)
+                # expand dimension of one image to (1, img_height, img_width, 3) -> ndim == 4
                 x = np.expand_dims(x, 0)
             if len(x) > batch_size:
-                chunks = np.split(x)
+                chunks = np.array_split(x, math.ceil(len(x) / batch_size))
                 predictions = []
                 for chunk in chunks:
                     p = self._model.predict(chunk)
                     predictions.append(p)
+                predictions = np.hstack([psa_score(x) for x in predictions])
             else:
-                predictions = self._model.predict(x)
+                predictions = psa_score(self._model.predict(x))
 
-        return predictions
+            return predictions
 
 
 

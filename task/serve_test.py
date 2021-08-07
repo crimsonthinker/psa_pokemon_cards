@@ -14,6 +14,9 @@ if __name__ == '__main__':
     parser.add_argument("--dest_pred_dir", type = str,default = None,
         help = 'Image destination path for csv'
     )
+    parser.add_argument("--grade_ground_truth_path", type = str,default = None,
+        help = 'Path of ground truth grade file.'
+    )
     args = parser.parse_args()
 
     if len(args.model_score_type) == 0:
@@ -21,6 +24,7 @@ if __name__ == '__main__':
     else:
         score_types = args.model_score_type
 
+    series = []
     for score_type in score_types:
         if args.model == 'vgg16_grader':
             classifier = VGG16Grader(grade_name = score_type)
@@ -29,7 +33,12 @@ if __name__ == '__main__':
         classifier.load(args.model_datetime)
 
         # predict from the image directory
-        predictions = classifier.predict(
-            args.img_dir,
-            args.dest_pred_dir
-        )
+        predictions_df = classifier.predict(args.img_dir)
+
+        series.append(predictions_df)
+
+    final = pd.concat(series, axis = 1)
+
+    # merge with true grade
+    if args.grade_ground_truth_path is not None:
+        true_grade = None
