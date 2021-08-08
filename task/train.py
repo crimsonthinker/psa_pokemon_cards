@@ -5,17 +5,13 @@ from trainers.vgg16_grader import VGG16Grader
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default='vgg16_grader', nargs='?',
-        help="Model name for temple classification")
+        help="Model name for grading trading cards")
     parser.add_argument("--skip_preprocessing", action='store_true', default = False,
         help="Skip reloading images into default preprocessed image folder")
     parser.add_argument("--clean_log", action='store_true', default = False,
         help="Clean log folder")
     parser.add_argument("--clean_checkpoints", action='store_true', default = False,
         help="Clean checkpoints folder of the model")
-    parser.add_argument("--save_evaluation", action='store_true', default = False,
-        help="Save visualization result in .log folder")
-    parser.add_argument("--visualize_result", action='store_true', default = False,
-        help="Visualize the result")
     parser.add_argument("--train_directory", type=str, default='data', nargs='?',
         help="Training directory")
     parser.add_argument("--img_height", type=int, default=256, nargs='?',
@@ -28,7 +24,7 @@ if __name__ == '__main__':
         help="Batch size for training session")
     parser.add_argument("--epochs", type=int, default=2, nargs='?',
         help="Number of epochs for training session")
-    parser.add_argument("--learning_rate", type=float, default=0.0001, nargs='?',
+    parser.add_argument("--learning_rate", type=float, default=0.001, nargs='?',
         help="Learning rate for the model")
     parser.add_argument("--model_score_type", type=str, default=[], nargs='+',
         help="Score type of the model. Leave blank if run all.")
@@ -69,12 +65,6 @@ if __name__ == '__main__':
         # train the model
         # new model already been saved in this function
         model.train_and_evaluate(image_dataset)
-
-        # visualize results
-        if args.visualize_result or args.save_evaluation:
-            model.visualize_evaluation(
-                args.visualize_result,
-                args.save_evaluation)
         
         # save the model
         model.save_metadata()

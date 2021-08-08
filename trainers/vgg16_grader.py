@@ -149,106 +149,6 @@ class VGG16Grader(object):
         except KeyboardInterrupt:
             self._logger.info("Interrupt training session")
 
-    def save_visualization_result(self):
-        if self._history is not None:
-            self._logger.info("Saving visualization result")
-            epochs_range = list(range(self._epochs))
-
-            root_path = os.path.join('.log', datetime.utcnow().strftime(SQL_TIMESTAMP))
-            ensure_dir(root_path)
-
-            fig = make_subplots(
-                rows = 1,
-                cols = 2
-            )
-
-            fig.add_trace(
-                go.Scatter(
-                    name = 'Training Accuracy',
-                    x = epochs_range, 
-                    y = self._history.history['accuracy']),
-                row = 1, col = 1
-            )
-            fig.add_trace(
-                go.Scatter(
-                    name = 'Validation Accuracy',
-                    x = epochs_range, 
-                    y = self._history.history['val_accuracy']),
-                row = 1, col = 1
-            )
-            fig.add_trace(
-                go.Scatter(
-                    name = 'Training Loss',
-                    x = epochs_range, 
-                    y = self._history.history['loss']),
-                row = 1, col = 2
-            )
-            fig.add_trace(
-                go.Scatter(
-                    name = 'Validation Loss',
-                    x = epochs_range, 
-                    y = self._history.history['val_loss']),
-                row = 1, col = 2
-            )
-            fig.update_layout(title = 'Accuracy and Loss')
-            fig.write_html(os.path.join(root_path, 'accuracy_and_loss.html'))
-
-            # calculate average precision and recall of model
-            total_demoninators = [x + y for x, y in zip(self._history.history['true_positives'], self._history.history['false_positives'])]
-            precisions = [denominator / total_demoninator \
-                if total_demoninator > 0.0 else 0.0 for denominator, total_demoninator \
-                    in zip(self._history.history['true_positives'], total_demoninators)]
-            total_demoninators = [x + y for x, y in zip(self._history.history['true_positives'], self._history.history['false_negatives'])]
-            recalls = [denominator / total_demoninator \
-                if total_demoninator > 0.0 else 0.0 for denominator, total_demoninator \
-                    in zip(self._history.history['true_positives'], total_demoninators)]
-            total_demoninators = [x + y for x, y in zip(self._history.history['val_true_positives'], self._history.history['val_false_positives'])]
-            val_precisions = [denominator / total_demoninator \
-                if total_demoninator > 0.0 else 0.0 for denominator, total_demoninator \
-                    in zip(self._history.history['val_true_positives'], total_demoninators)]
-            total_demoninators = [x + y for x, y in zip(self._history.history['val_true_positives'], self._history.history['val_false_negatives'])]
-            val_recalls = [denominator / total_demoninator \
-                if total_demoninator > 0.0 else 0.0 for denominator, total_demoninator \
-                    in zip(self._history.history['val_true_positives'], total_demoninators)]
-
-            fig = make_subplots(
-                rows = 1,
-                cols = 2
-            )
-
-            fig.add_trace(
-                go.Scatter(
-                    name = 'Average Training Precision',
-                    x = epochs_range, 
-                    y = precisions),
-                row = 1, col = 1
-            )
-            fig.add_trace(
-                go.Scatter(
-                    name = 'Average Validation Preicision',
-                    x = epochs_range, 
-                    y = val_precisions),
-                row = 1, col = 1
-            )
-            fig.add_trace(
-                go.Scatter(
-                    name = 'Average Training Recall',
-                    x = epochs_range, 
-                    y = recalls),
-                row = 1, col = 2
-            )
-            fig.add_trace(
-                go.Scatter(
-                    name = 'Average Validation Recall',
-                    x = epochs_range, 
-                    y = val_recalls),
-                row = 1, col = 2
-            )
-            fig.update_layout(title = 'Average Precision and Recall')
-            fig.write_html(os.path.join(root_path, 'average_precision_and_recall.html'))
-        else:
-            self._logger.warn("Neither the model has been trained nor it has state.")
-
     def save_metadata(self):
         # Update new root path
         self._logger.info(f"Saving metadata in {self._root_path}")
@@ -305,7 +205,7 @@ class VGG16Grader(object):
             # glob files
             predicted_filenames = []
             images = []
-            for name in tqdm(glob.glob(os.path.join(x, '*'))):
+            for name in tqdm(sorted(glob.glob(os.path.join(x, '*')))):
                 try:
                     img = tf.keras.preprocessing.image.load_img(
                         name, target_size=(self.img_height, self.img_width)
@@ -319,6 +219,7 @@ class VGG16Grader(object):
             image_predicted = 0
             result = pd.Series()
             result.index.name = 'Identifier'
+            result.index = result.index.astype(np.int64)
             result.name = self.grade_name
             self._logger.info('Start prediction')
             for chunk, file_chunk in zip(chunks, file_chunks):
@@ -331,29 +232,6 @@ class VGG16Grader(object):
 
             return result
         else:
-            def psa_score(p):
-                # squeeze
-                p = np.squeeze(p, axis = -1)
-                # rescale to 10
-                p = p * 10.0
-                # round by PSA scoring system
-                lower = np.floor(p)
-                upper = np.ceil(p)
-                lower_diff = np.absolute(lower - p)
-                upper_diff = np.absolute(upper - p)
-                mid_diff = np.absolute(((lower + upper) / 2) - p)
-                for i,(m,(l,u)) in enumerate(zip(mid_diff,zip(lower_diff, upper_diff))):
-                    if l == u: #exact score
-                        continue
-                    elif m == l or (m < l and m < u):
-                        p[i] = (math.floor(p[i]) + math.ceil(p[i])) / 2
-                    elif u <= m:
-                        p[i] = math.ceil(p[i])
-                    elif l < m and l < u:
-                        p[i] = math.ceil(p[i])
-
-                return p
-
             if x.ndim == 3:
                 # expand dimension of one image to (1, img_height, img_width, 3) -> ndim == 4
                 x = np.expand_dims(x, 0)
@@ -363,9 +241,10 @@ class VGG16Grader(object):
                 for chunk in chunks:
                     p = self._model.predict(chunk)
                     predictions.append(p)
-                predictions = np.hstack([psa_score(x) for x in predictions])
             else:
-                predictions = psa_score(self._model.predict(x))
+                predictions = [self._model.predict(x)]
+            predictions = [np.squeeze(p, axis = -1) * 10.0 for p in predictions]
+            predictions = np.hstack([psa_score(x) for x in predictions])
 
             return predictions
 
