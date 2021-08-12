@@ -80,22 +80,8 @@ class DataLoader:
         self.test_pivot = 0
 
     def dataparser(self, img_path):
-        front_path = os.path.join(img_path, "front.jpg")
-        back_path = os.path.join(img_path, "back.jpg")
-        front_img = cv2.imread(front_path, cv2.IMREAD_COLOR).astype(np.float32) / 255.0
-        back_img = cv2.imread(back_path, cv2.IMREAD_COLOR).astype(np.float32) / 255.0
-
-        front_seg = np.zeros([front_img.shape[0], front_img.shape[1], 1],dtype=np.float32)
-        back_seg = np.zeros([back_img.shape[0], back_img.shape[1], 1],dtype=np.float32)
-        front_points = np.array([[round(pt[0]),round(pt[1])] \
-             for pt in json.load(open(os.path.join(img_path, "front.json")))['shapes'][0]['points']])
-        back_points = np.array([[round(pt[0]),round(pt[1])] \
-             for pt in json.load(open(os.path.join(img_path, "back.json")))['shapes'][0]['points']])
-        cv2.fillPoly(front_seg, pts =[front_points], color=(255,255,255))
-        cv2.fillPoly(back_seg, pts =[back_points], color=(255,255,255))
-        
-        input_f = cv2.resize(front_img[self.shape[0]//4:,:], self.dim, interpolation = cv2.INTER_AREA)
-        gtr_f = cv2.resize(front_seg[self.shape[0]//4:,:], self.dim, interpolation = cv2.INTER_AREA)
-        input_b = cv2.resize(back_img[self.shape[0]//4:,:], self.dim, interpolation = cv2.INTER_AREA)
-        gtr_b = cv2.resize(back_seg[self.shape[0]//4:,:], self.dim, interpolation = cv2.INTER_AREA)
+        input_f = cv2.imread(os.path.join(img_path, "front.jpg"), cv2.IMREAD_COLOR).astype(np.float32) / 255.0
+        input_b = cv2.imread(os.path.join(img_path, "back.jpg"), cv2.IMREAD_COLOR).astype(np.float32) / 255.0
+        gtr_f = cv2.imread(os.path.join(img_path, "gtr_front.jpg"), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0
+        gtr_b = cv2.imread(os.path.join(img_path, "gtr_back.jpg"), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0
         return [input_f, input_b], [np.expand_dims(gtr_f, -1), np.expand_dims(gtr_b, -1)]

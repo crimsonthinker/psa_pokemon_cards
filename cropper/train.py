@@ -14,7 +14,7 @@ class Trainer():
         self.model = UNET((512, 512, 3))
         self.dataloader = DataLoader()
         self.model.build(input_shape=(1, 512, 512, 3))
-        self.nepochs = 150
+        self.nepochs = 200
         
         self.optimizer = tf.keras.optimizers.Adam(lr=5e-4)
         self.loss = tf.keras.losses.MeanSquaredError()
@@ -22,7 +22,7 @@ class Trainer():
 
         self.current_time = datetime.datetime.now().strftime("%d_%m_%Y-%H%_M%_S")
         self.saved_model_dir = './checkpoints/cropper/{}'.format(self.current_time)
-        self.checkpoint_since_epoch = 0
+        self.checkpoint_since_epoch = 150
 
     def train(self, isPretrained=True):
         self.dataloader.load()
@@ -48,15 +48,16 @@ class Trainer():
                 test_loss.append(loss.numpy())
                 test_metric.append(metric.numpy())
 
-            template = '>>> Epoch {}/{}, Train Loss: {0:.4f}, Train Metric: {0:.4f}, Test Loss: {0:.4f}, Test Metric: {0:.4f}'
-            print(template.format(epoch + 1, self.nepochs, 
-                                sum(train_loss)/len(train_loss), sum(train_metric)/len(train_metric), 
-                                sum(test_loss)/len(test_loss), sum(test_metric)/len(test_metric)))
+            template = '>>> Epoch {}/{}, Train Loss: {:.4f}, Train Metric: {:.4f}, Test Loss: {:.4f}, Test Metric: {:.4f}'.format(
+                                epoch + 1, self.nepochs, 
+                                np.mean(train_loss), np.mean(train_metric), 
+                                np.mean(test_loss), np.mean(test_metric))
+            print(template)
             if epoch > self.checkpoint_since_epoch:
                 self.save_weights(
                     epoch,
-                    sum(train_loss)/len(train_loss), sum(train_metric)/len(train_metric),
-                    sum(test_loss)/len(test_loss), sum(test_metric)/len(test_metric)
+                    np.mean(train_loss), np.mean(train_metric), 
+                    np.mean(test_loss), np.mean(test_metric)
                 )
             self.dataloader.shuffle()
             self.dataloader.reset()
@@ -84,12 +85,12 @@ class Trainer():
 
     def save_weights(
         self, epoch,
-        train_loss, train_accu,
-        test_loss, test_accu
+        train_loss, train_metric,
+        test_loss, test_metric
     ):
         dir_name = f"{epoch}_" \
-                   + f"{train_loss:.4f}_{train_accu:.4f}_" \
-                   + f"{test_loss:.4f}_{test_accu:.4f}"
+                   + f"{train_loss:.5f}_{train_metric:.5f}_" \
+                   + f"{test_loss:.5f}_{test_metric:.5f}"
 
         dir_path = os.path.join(self.saved_model_dir, dir_name)
         if not os.path.isdir(self.saved_model_dir):
