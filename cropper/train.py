@@ -14,15 +14,15 @@ class Trainer():
         self.model = UNET((512, 512, 3))
         self.dataloader = DataLoader()
         self.model.build(input_shape=(1, 512, 512, 3))
-        self.nepochs = 200
+        self.nepochs = 150
         
-        self.optimizer = tf.keras.optimizers.Adam(lr=1e-4)
+        self.optimizer = tf.keras.optimizers.Adam(lr=5e-4)
         self.loss = tf.keras.losses.MeanSquaredError()
         self.metric = tf.keras.metrics.BinaryAccuracy()
 
         self.current_time = datetime.datetime.now().strftime("%d_%m_%Y-%H%_M%_S")
-        self.saved_model_dir = './checkpoints/cropper/{}/'.format(self.current_time)
-        self.checkpoint_since_epoch = 150
+        self.saved_model_dir = './checkpoints/cropper/{}'.format(self.current_time)
+        self.checkpoint_since_epoch = 0
 
     def train(self, isPretrained=True):
         self.dataloader.load()
@@ -38,17 +38,17 @@ class Trainer():
             test_metric = []
             while(self.dataloader.isEnoughData(isTrained=True)):
                 inputs, ground_truths = self.dataloader.next_train_batch()
-                loss, accurate = self.gradient_descent(inputs, ground_truths)
+                loss, metric = self.gradient_descent(inputs, ground_truths)
                 train_loss.append(loss.numpy())
-                train_metric.append(accurate.numpy())
+                train_metric.append(metric.numpy())
 
             while(self.dataloader.isEnoughData(isTrained=False)):
                 inputs, ground_truths = self.dataloader.next_test_batch()
-                loss, accurate = self.predict(inputs, ground_truths, isTrained=False)
+                loss, metric = self.predict(inputs, ground_truths, isTrained=False)
                 test_loss.append(loss.numpy())
-                test_metric.append(accurate.numpy())
+                test_metric.append(metric.numpy())
 
-            template = '>>> Epoch {}/{}, Train Loss: {}, Train Acccuracy: {}, Test Loss: {}, Test Accuracy: {}'
+            template = '>>> Epoch {}/{}, Train Loss: {0:.4f}, Train Metric: {0:.4f}, Test Loss: {0:.4f}, Test Metric: {0:.4f}'
             print(template.format(epoch + 1, self.nepochs, 
                                 sum(train_loss)/len(train_loss), sum(train_metric)/len(train_metric), 
                                 sum(test_loss)/len(test_loss), sum(test_metric)/len(test_metric)))
@@ -91,7 +91,9 @@ class Trainer():
                    + f"{train_loss:.4f}_{train_accu:.4f}_" \
                    + f"{test_loss:.4f}_{test_accu:.4f}"
 
-        dir_path = f"{self.saved_model_dir}/{dir_name}"
+        dir_path = os.path.join(self.saved_model_dir, dir_name)
+        if not os.path.isdir(self.saved_model_dir):
+            os.mkdir(self.saved_model_dir)
         os.mkdir(dir_path)
         self.model.save_weights(dir_path + "/saved", save_format="tf")
 
