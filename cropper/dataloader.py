@@ -5,13 +5,14 @@ import json
 from tensorflow import convert_to_tensor
 from glob import glob
 import numpy as np
+from preprocessor import ROOT_PATH
 '''
 Data Structure
 root---\---- 3727258001 --
         \--- 3727258002 --
          \-- 3727258003 --
 '''
-DATA_PATH = "/home/reidite/Dataset/PSA/Cropper/train"
+DATA_PATH = os.path.join(ROOT_PATH, "processed", "train")
 
 class DataLoader:
     def __init__(self):
