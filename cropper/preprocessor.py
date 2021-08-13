@@ -46,7 +46,8 @@ class PreProcessor:
             gtr_b = cv2.resize(back_seg[self.shape[0]//4:,:], self.dim, interpolation = cv2.INTER_AREA)
             
             img_folder = os.path.join(self.save_path, img_name)
-            os.mkdir(img_folder)
+            if not os.path.isdir(img_folder):
+                os.mkdir(img_folder)
             cv2.imwrite("{}/front.jpg".format(img_folder), input_f)
             cv2.imwrite("{}/back.jpg".format(img_folder), input_b)
             cv2.imwrite("{}/gtr_front.jpg".format(img_folder), gtr_f)

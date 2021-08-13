@@ -14,15 +14,15 @@ class Trainer():
         self.model = UNET((512, 512, 3))
         self.dataloader = DataLoader()
         self.model.build(input_shape=(1, 512, 512, 3))
-        self.nepochs = 200
+        self.nepochs = 50
         
         self.optimizer = tf.keras.optimizers.Adam(lr=5e-4)
-        self.loss = tf.keras.losses.MeanSquaredError()
+        self.loss = tf.keras.losses.MeanAbsoluteError()
         self.metric = tf.keras.metrics.BinaryAccuracy()
 
         self.current_time = datetime.datetime.now().strftime("%d_%m_%Y-%H%_M%_S")
         self.saved_model_dir = './checkpoints/cropper/{}'.format(self.current_time)
-        self.checkpoint_since_epoch = 150
+        self.checkpoint_since_epoch = 30
 
     def train(self, isPretrained=True):
         self.dataloader.load()

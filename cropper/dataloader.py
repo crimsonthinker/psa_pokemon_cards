@@ -15,7 +15,7 @@ DATA_PATH = "/home/reidite/Dataset/PSA/Cropper/train"
 
 class DataLoader:
     def __init__(self):
-        self.batch_size = 32
+        self.batch_size = 16
         self.shape = (2698, 1620, 3)
         self.dim = (405, 506)
         self.data_path = os.path.join(DATA_PATH)
