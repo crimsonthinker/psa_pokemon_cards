@@ -14,6 +14,7 @@ class Trainer():
         self.model = UNET((512, 512, 3))
         self.dataloader = DataLoader()
         self.model.build(input_shape=(1, 512, 512, 3))
+        self.current_epoch = 39
         self.nepochs = 50
         
         self.optimizer = tf.keras.optimizers.Adam(lr=5e-4)
@@ -22,7 +23,11 @@ class Trainer():
 
         self.current_time = datetime.datetime.now().strftime("%d_%m_%Y-%H%_M%_S")
         self.saved_model_dir = './checkpoints/cropper/{}'.format(self.current_time)
-        self.checkpoint_since_epoch = 30
+        self.checkpoint_since_epoch = 40
+
+        self.pretrained_datetime = "14_08_2021-00 7 9"
+        self.pretrained_name = "39_0.00562_0.68842_0.00483_0.68879"
+        self.pretrained_model_path = './checkpoints/cropper/{}/{}/saved'.format(self.pretrained_datetime, self.pretrained_name)
 
     def train(self, isPretrained=True):
         self.dataloader.load()
@@ -31,7 +36,7 @@ class Trainer():
         if isPretrained:
             self.model.load_weights(self.pretrained_model_path)
 
-        for epoch in range(self.nepochs):
+        for epoch in range(self.current_epoch, self.nepochs):
             train_loss = []
             train_metric = []
             test_loss = []
@@ -53,7 +58,7 @@ class Trainer():
                                 np.mean(train_loss), np.mean(train_metric), 
                                 np.mean(test_loss), np.mean(test_metric))
             print(template)
-            if epoch > self.checkpoint_since_epoch:
+            if epoch + 1 > self.checkpoint_since_epoch:
                 self.save_weights(
                     epoch,
                     np.mean(train_loss), np.mean(train_metric), 
@@ -88,7 +93,7 @@ class Trainer():
         train_loss, train_metric,
         test_loss, test_metric
     ):
-        dir_name = f"{epoch}_" \
+        dir_name = f"{epoch + 1}_" \
                    + f"{train_loss:.5f}_{train_metric:.5f}_" \
                    + f"{test_loss:.5f}_{test_metric:.5f}"
 
@@ -104,4 +109,4 @@ class Trainer():
 if __name__ == '__main__':
     trainer = Trainer()
     trainer.model.summary()
-    trainer.train(isPretrained=False)
+    trainer.train(isPretrained=True)

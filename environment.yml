@@ -20,10 +20,10 @@ dependencies:
   - brotlipy=0.7.0=py38h27cfd23_1003
   - bzip2=1.0.8=h7f98852_4
   - c-ares=1.17.1=h27cfd23_0
-  - ca-certificates=2021.5.30=ha878542_0
+  - ca-certificates=2021.7.5=h06a4308_1
   - cachetools=4.2.2=pyhd3eb1b0_0
   - cairo=1.16.0=h6cf1ce9_1008
-  - certifi=2021.5.30=py38h578d9bd_0
+  - certifi=2021.5.30=py38h06a4308_0
   - cffi=1.14.6=py38h400218f_0
   - chardet=3.0.4=py38h06a4308_1003
   - click=8.0.1=pyhd3eb1b0_0
@@ -133,7 +133,7 @@ dependencies:
   - opencv=4.5.1=py38h578d9bd_0
   - openh264=2.1.1=h780b84a_0
   - openjpeg=2.4.0=hb52868f_1
-  - openssl=1.1.1k=h7f98852_0
+  - openssl=1.1.1k=h27cfd23_0
   - opt_einsum=3.3.0=pyhd3eb1b0_1
   - parso=0.8.2=pyhd3eb1b0_0
   - pcre=8.45=h9c3ff4c_0
@@ -189,6 +189,7 @@ dependencies:
   - tk=8.6.10=hbc83047_0
   - toolz=0.11.1=py_0
   - tornado=6.1=py38h497a2fe_1
+  - tqdm=4.62.0=pyhd3eb1b0_1
   - traitlets=5.0.5=pyhd3eb1b0_0
   - typing-extensions=3.10.0.0=hd3eb1b0_0
   - typing_extensions=3.10.0.0=pyh06a4308_0

@@ -1,3 +1,4 @@
 *.jpg
 data/*
 .preprocessed_train
+checkpoints/cropper/*
