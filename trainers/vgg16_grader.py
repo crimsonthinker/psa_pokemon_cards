@@ -70,16 +70,15 @@ class VGG16Grader(object):
             include_top = False
         )
 
-        # freeze the layer in VGG16
-        for layer in self._base_model.layers:
-            layer.trainable = False
-
         self._layer_only = tf.keras.Sequential([
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(64, 
+            tf.keras.layers.Dense(32, 
                 activation = 'relu',
                 kernel_regularizer = tf.keras.regularizers.l2(0.01)),
             tf.keras.layers.BatchNormalization(),
+            tf.keras.layers.Dense(16, 
+                activation = 'relu',
+                kernel_regularizer = tf.keras.regularizers.l2(0.01)),
             tf.keras.layers.Dropout(0.2),
             tf.keras.layers.Dense(1, activation = 'sigmoid')
         ], name = 'meaty_layer')
@@ -97,6 +96,10 @@ class VGG16Grader(object):
         self._tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir='./.log/tensorboard', histogram_freq=1)
 
     def _construct(self):
+        # freeze the layer in VGG16
+        for layer in self._base_model.layers:
+            layer.trainable = False
+
         self._model = tf.keras.Sequential([
             self._data_augmentation,
             self._base_model,
@@ -115,7 +118,8 @@ class VGG16Grader(object):
                 learning_rate = lr_schedule),
             loss = 'mse',
             metrics = [
-                'mean_absolute_error'
+                'mean_absolute_error',
+                'mse'
             ]
         )
 
@@ -152,6 +156,7 @@ class VGG16Grader(object):
     def save_metadata(self):
         # Update new root path
         self._logger.info(f"Saving metadata in {self._root_path}")
+        ensure_dir(self._root_path)
         # save other metadata
         metadata = {
             'grade_name' : self.grade_name,
@@ -170,6 +175,7 @@ class VGG16Grader(object):
     def load(self, timestamp : str = None):
         """Load the newest checkpoints in the folder
         """
+        max_datetime = None
         if timestamp is None:
             # get the lastest checkpoint provided that the timestamp is None
             max_datetime = None
@@ -181,6 +187,9 @@ class VGG16Grader(object):
                     max_datetime = d_time
         else:
             max_datetime = timestamp
+
+        if max_datetime is None:
+            return
 
         # load the model
         self._root_path = os.path.join('.checkpoints', self._model_name, max_datetime)
@@ -205,6 +214,11 @@ class VGG16Grader(object):
             # glob files
             predicted_filenames = []
             images = []
+            image_predicted = 0
+            result = pd.Series()
+            result.index.name = 'Identifier'
+            result.index = result.index.astype(np.int64)
+            result.name = self.grade_name
             for name in tqdm(sorted(glob.glob(os.path.join(x, '*')))):
                 try:
                     img = tf.keras.preprocessing.image.load_img(
@@ -212,22 +226,27 @@ class VGG16Grader(object):
                     )
                     images.append(tf.keras.preprocessing.image.img_to_array(img))
                     predicted_filenames.append(os.path.basename(name))
+                    if len(images) == batch_size:
+                        self._logger.info('Start prediction')
+                        ims = np.stack(images)
+                        predictions = self.predict(ims)
+                        image_predicted += len(images)
+                        print(f"Predicted {image_predicted} images")
+                        for t, filename in enumerate(predicted_filenames):
+                            result.loc[os.path.splitext(filename)[0]] = predictions[t] 
+                        print(result.value_counts())
+                        predicted_filenames = []
+                        images = []
                 except:
                     continue
-            chunks = np.array_split(images, math.ceil(len(images) / batch_size))
-            file_chunks = np.array_split(predicted_filenames, math.ceil(len(predicted_filenames) / batch_size))
-            image_predicted = 0
-            result = pd.Series()
-            result.index.name = 'Identifier'
-            result.index = result.index.astype(np.int64)
-            result.name = self.grade_name
-            self._logger.info('Start prediction')
-            for chunk, file_chunk in zip(chunks, file_chunks):
-                ims = np.stack(chunk)
+
+            if len(images) > 0:
+                self._logger.info('Start prediction')
+                ims = np.stack(images)
                 predictions = self.predict(ims)
-                image_predicted += len(chunk)
+                image_predicted += len(images)
                 print(f"Predicted {image_predicted} images")
-                for t, filename in enumerate(file_chunk):
+                for t, filename in enumerate(predicted_filenames):
                     result.loc[os.path.splitext(filename)[0]] = predictions[t] 
 
             return result

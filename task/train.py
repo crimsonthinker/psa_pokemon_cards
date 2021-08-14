@@ -61,6 +61,7 @@ if __name__ == '__main__':
                 clean_log = args.clean_log,
                 clean_checkpoints = args.clean_checkpoints
             )
+            model.load()
 
         # train the model
         # new model already been saved in this function

@@ -48,7 +48,7 @@ if __name__ == '__main__':
 
         # rename columns
         e = "Ground_Truth"
-        columns =  true_grade.columns
+        columns =  final.columns
         ground_truth_name = {k : f"{k}_{e}" for k in columns}
         true_grade = true_grade.rename(columns = ground_truth_name)
 
@@ -58,5 +58,5 @@ if __name__ == '__main__':
             new_sorted_columns.append(column)
             new_sorted_columns.append(f"{column}_{e}")
         final = final[new_sorted_columns]
-        final.to_csv("result.csv", index_label = 'Identifier')
+    final.to_csv("result.csv", index_label = 'Identifier')
         
