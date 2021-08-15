@@ -51,6 +51,7 @@ class ImageLoader(object):
         self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
         self._grades.index = [str(x) for x in self._grades.index]
         self._identifiers = []
+        self.failed_images_identifiers = []
         self.max_score = 10
 
         self.img_width = kwargs.get('img_width')
@@ -65,8 +66,9 @@ class ImageLoader(object):
         #read images
         self._images = []
         self._identifiers = []
+        self.failed_images = []
 
-        def _extract_contour(name):
+        def _extract_contour(name : str):
             try:
                 _, identifier = name.split("/")
                 back_image = os.path.join(name, "back.jpg")
@@ -74,7 +76,6 @@ class ImageLoader(object):
                 back_image = imread(back_image)
                 front_image = imread(front_image)
                 preprocessed_image = self._preprocess(back_image, front_image, score_type)
-
                 # append the preprocessed image
                 if preprocessed_image is not None:
                     resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
@@ -82,15 +83,14 @@ class ImageLoader(object):
                 else:
                     return (identifier, None)
             except:
-                return None
+                return (identifier, None)
+
         file_names = list(glob.glob(os.path.join(self._train_directory, '*')))
-        for i in tqdm(range(0, len(file_names))):
-            name = file_names[i]
-            x = _extract_contour(name)
-            if x is not None:
-                if x[1] is not None:
-                    self._identifiers.append(x[0])
-                    self._images.append(x[1])
+        results = [_extract_contour(name) for name in tqdm(file_names)]
+        results = [x for x in results if x is not None]
+        self._identifiers = [x[0] for x in results if x[1] is not None]
+        self._images = [x[1] for x in results if x[1] is not None]
+        self.failed_images_identifiers = [x[0] for x in results if x[1] is None]
 
 
     def _preprocess(self, back_image : np.ndarray, front_image : np.ndarray, score_type : str):
@@ -107,16 +107,17 @@ class ImageLoader(object):
             front_card = extract_front_contour_for_pop_image(front_image)
             if front_card is None:
                 front_card = extract_front_contour_for_dim_image(front_image)
+        if front_card is not None and score_type != 'Surface':
+            front_card[150:-150, 150:-150] = 0
 
         back_card = extract_front_contour_for_pop_image(back_image)
         if back_card is None:
             back_card = extract_front_contour_for_dim_image(back_image)
+        if back_card is not None and score_type != 'Surface':
+            back_card[150:-150,150:-150] = 0
+
 
         if front_card is not None and back_card is not None:
-            if score_type != 'Surface':
-                # Except for the surface, remove the center
-                front_card[150:-150, 150:-150] = 0
-                back_card[150:-150,150:-150] = 0
             # merge two image
             front_height, front_width, _ = front_card.shape
             back_height, back_width, _ = back_card.shape
@@ -153,9 +154,6 @@ class ImageLoader(object):
             merge_image = np.concatenate((front_card, back_card), axis = 1) # merge
             return merge_image
         elif back_card is not None and score_type == 'Centering':
-            # Remove a part of card in the center
-            # focus only at the corners and edges
-            back_card[150:-150,150:-150] = 0
             return back_card
         else:
             return None

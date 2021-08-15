@@ -1,28 +1,26 @@
 import argparse
 from utils.loader import ImageLoader
-from trainers.vgg16_grader import VGG16Grader
+from models.vgg16_grader import VGG16Grader
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, default='vgg16_grader', nargs='?',
         help="Model name for grading trading cards")
-    parser.add_argument("--skip_preprocessing", action='store_true', default = False,
-        help="Skip reloading images into default preprocessed image folder")
     parser.add_argument("--clean_log", action='store_true', default = False,
         help="Clean log folder")
     parser.add_argument("--clean_checkpoints", action='store_true', default = False,
         help="Clean checkpoints folder of the model")
     parser.add_argument("--train_directory", type=str, default='data', nargs='?',
         help="Training directory")
-    parser.add_argument("--img_height", type=int, default=256, nargs='?',
+    parser.add_argument("--img_height", type=int, default=512, nargs='?',
         help="Image height for the training session")
-    parser.add_argument("--img_width", type=int, default=256, nargs='?',
+    parser.add_argument("--img_width", type=int, default=512, nargs='?',
         help="Image width for the training session")
     parser.add_argument("--dim", type=int, default=3, nargs='?',
         help="Image didmension for the training session")
-    parser.add_argument("--batch_size", type=int, default=32, nargs='?',
+    parser.add_argument("--batch_size", type=int, default=8, nargs='?',
         help="Batch size for training session")
-    parser.add_argument("--epochs", type=int, default=2, nargs='?',
+    parser.add_argument("--epochs", type=int, default=15, nargs='?',
         help="Number of epochs for training session")
     parser.add_argument("--learning_rate", type=float, default=0.001, nargs='?',
         help="Learning rate for the model")
@@ -32,7 +30,7 @@ if __name__ == '__main__':
 
     # run raining session
     image_dataset = ImageLoader(
-        skip_preprocessing = args.skip_preprocessing,
+        skip_preprocessing = True,
         train_directory = args.train_directory,
         img_height = args.img_height,
         img_width = args.img_width,

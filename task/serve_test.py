@@ -1,6 +1,6 @@
 import argparse
 import pandas as pd
-from trainers.vgg16_grader import VGG16Grader
+from models.vgg16_grader import VGG16Grader
 import numpy as np
 from utils.preprocessor import psa_score
 
