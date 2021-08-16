@@ -11,6 +11,7 @@ import pandas as pd
 from typing import Union
 import math
 import json
+import pickle
 
 from tensorflow.keras.applications import VGG16
 
@@ -157,6 +158,7 @@ class VGG16Grader(object):
     def save_history(self):
         self._logger.info(f"Saving history in {self._root_path}")
         ensure_dir(self._root_path)
+
         # save class names as pickle
         with open(os.path.join(self._root_path, 'history.pkl'), 'wb') as f:
             pickle.dump(self._history, f)

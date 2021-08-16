@@ -18,7 +18,7 @@ if __name__ == '__main__':
         help="Image width for the training session")
     parser.add_argument("--dim", type=int, default=3, nargs='?',
         help="Image didmension for the training session")
-    parser.add_argument("--batch_size", type=int, default=8, nargs='?',
+    parser.add_argument("--batch_size", type=int, default=32, nargs='?',
         help="Batch size for training session")
     parser.add_argument("--epochs", type=int, default=15, nargs='?',
         help="Number of epochs for training session")
@@ -67,3 +67,6 @@ if __name__ == '__main__':
         
         # save the model
         model.save_metadata()
+
+        # save history
+        model.save_history()
