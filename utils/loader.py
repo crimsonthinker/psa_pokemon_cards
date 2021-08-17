@@ -69,7 +69,8 @@ class GraderImageLoader(object):
 
         def _extract_contour(name : str):
             try:
-                _, identifier = name.split("/")
+                folders = name.split("/")
+                identifier = folders[-1]
                 back_image = os.path.join(name, "back.jpg")
                 front_image = os.path.join(name, "front.jpg")
                 back_image = imread(back_image)

@@ -5,6 +5,7 @@ import os
 import tensorflow as tf
 import datetime
 import argparse
+import json
 
 from models.unet import UNET
 from utils.loader import UNETDataLoader
@@ -22,7 +23,9 @@ class UNETTrainer():
         
         self.optimizer = tf.keras.optimizers.Adam(lr=5e-4)
         self.loss = tf.keras.losses.MeanAbsoluteError() # why this loss
-        self.metric = tf.keras.metrics.BinaryAccuracy()
+        self.accuracy_metric = tf.keras.metrics.BinaryAccuracy(),
+        self.iou_metric = tf.keras.metrics.MeanIoU()
+
         self.epochs = args.epochs
 
         self.current_time = datetime.datetime.now().strftime(SQL_TIMESTAMP)
@@ -33,6 +36,7 @@ class UNETTrainer():
         self.val_ratio = args.val_ratio
 
     def train(self, from_pretrained = True):
+        self.history = {}
         self.dataloader.load()
         self.dataloader.split(ratio = 1 - self.val_ratio)
         self.dataloader.shuffle()
@@ -41,39 +45,55 @@ class UNETTrainer():
 
         for epoch in range(self.epochs):
             train_loss = []
-            train_metric = []
+            train_accuracy = []
+            train_iou = []
             test_loss = []
-            test_metric = []
+            test_accuracy = []
+            test_iou = []
             # train
             while(self.dataloader.is_enough_data(is_train = True)):
                 inputs, ground_truths = self.dataloader.next_train_batch()
-                loss, metric = self.gradient_descent(inputs, ground_truths)
+                loss, accuracy, iou = self.gradient_descent(inputs, ground_truths)
                 train_loss.append(loss.numpy())
-                train_metric.append(metric.numpy())
+                train_accuracy.append(accuracy.numpy())
+                train_iou.append(iou.numpy())
 
             # make prediction for validation
             while(self.dataloader.is_enough_data(is_train = False)):
                 inputs, ground_truths = self.dataloader.next_test_batch()
-                loss, metric = self.predict(inputs, ground_truths, is_train=False)
+                loss, accuracy, iou = self.predict(inputs, ground_truths, is_train=False)
                 test_loss.append(loss.numpy())
-                test_metric.append(metric.numpy())
+                test_accuracy.append(accuracy.numpy())
+                test_iou.append(iou.numpy())
 
             template = '>>> Epoch {}, Train Loss: {:.4f}, Train Metric: {:.4f}, Test Loss: {:.4f}, Test Metric: {:.4f}'.format(
                                 self.epochs + 1, 
-                                np.mean(train_loss), np.mean(train_metric), 
-                                np.mean(test_loss), np.mean(test_metric))
-            self.save_weights(
-                epoch,
-                np.mean(train_loss), np.mean(train_metric), 
-                np.mean(test_loss), np.mean(test_metric)
+                                np.mean(train_loss), np.mean(train_accuracy), np.mean(train_iou), 
+                                np.mean(test_loss), np.mean(test_accuracy), np.mean(test_iou)
             )
+            print(template)
+
+            self.history.append(
+                {
+                    'train_loss' : float(np.mean(train_loss)),
+                    'test_loss' : float(np.mean(test_loss)),
+                    'train_accuracy' : float(np.mean(train_accuracy)),
+                    'test_accuracy' : float(np.mean(test_accuracy)),
+                    'train_iou' : float(np.mean(train_iou)),
+                    'test_iou' : float(np.mean(test_iou))
+                })
+
+            self.save_weights()
             self.dataloader.shuffle()
             self.dataloader.reset()
+
+        with open(os.path.join(self.saved_model_dir, 'result.json'), 'w') as f:
+            json.dump(self.history, f)
 
     @tf.function
     def gradient_descent(self, inputs, ground_truths):
         with tf.GradientTape() as tape:
-            loss, metric = self.predict(
+            loss, accuracy, iou = self.predict(
                 inputs, ground_truths
             )
         grads = tape.gradient(loss, self.model.trainable_variables)
@@ -81,32 +101,19 @@ class UNETTrainer():
             zip(grads, self.model.trainable_variables)
         )
 
-        return loss, metric
+        return loss, accuracy, iou
 
     @tf.function
     def predict(self, inputs, ground_truths, is_train=True):
         preds = self.model(inputs, training=is_train)
-        import pdb ; pdb.set_trace()
 
         loss = self.loss(preds, ground_truths)
-        metric = self.metric(preds, ground_truths)
-        return loss, metric
+        accuracy = self.accuracy_metric(preds, ground_truths)
+        iou = self.iou_metric(preds, ground_truths)
+        return loss, accuracy, iou
 
-    def save_weights(
-        self, epoch,
-        train_loss, train_metric,
-        test_loss, test_metric
-    ):
-        dir_name = f"{epoch + 1}_" \
-                   + f"{train_loss:.5f}_{train_metric:.5f}_" \
-                   + f"{test_loss:.5f}_{test_metric:.5f}"
-
-        dir_path = os.path.join(self.saved_model_dir, dir_name)
-        ensure_dir(dir_path)
-        self.model.save_weights(dir_path + "/saved", save_format="tf")
-
-    
-
+    def save_weights(self):
+        self.model.save_weights(self.saved_model_dir, save_format="tf")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
