@@ -100,5 +100,7 @@ class UNET(tf.keras.Model):
         c9 = self.conv9_1(u9)
         c9 = self.conv9_2(c9)
 
-        return self.outputs(c9)
+        output = self.outputs(c9)
+
+        return output
 

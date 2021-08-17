@@ -291,6 +291,7 @@ class UNETDataLoader(object):
     def load(self):
         """Load images paths
         """
+        import pdb ; pdb.set_trace()
         self.image_paths = [x[0] for x in os.walk(self.data_path)][1:]
         pass
 

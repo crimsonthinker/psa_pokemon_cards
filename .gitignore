@@ -1,3 +1,4 @@
 *.jpg
-data/*
+!data/grades.csv
+data
 unet_labeled/*

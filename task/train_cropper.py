@@ -1,3 +1,4 @@
+from utils.utilities import ensure_dir
 from utils.constants import SQL_TIMESTAMP
 import numpy as np
 import os
@@ -13,8 +14,8 @@ class UNETTrainer():
         self.model = UNET((args.img_height, args.img_width, args.dim))
         self.dataloader = UNETDataLoader(
             batch_size = args.batch_size,
-            original_height = args.original_height,
-            original_width = args.original_width,
+            original_height = args.origin_img_height,
+            original_width = args.origin_img_width,
             dim = args.dim
         )
         self.model.build(input_shape=(1, args.img_height, args.img_width, args.dim))
@@ -32,7 +33,6 @@ class UNETTrainer():
         self.val_ratio = args.val_ratio
 
     def train(self, from_pretrained = True):
-
         self.dataloader.load()
         self.dataloader.split(ratio = 1 - self.val_ratio)
         self.dataloader.shuffle()
@@ -52,23 +52,21 @@ class UNETTrainer():
                 train_metric.append(metric.numpy())
 
             # make prediction for validation
-            while(self.dataloader.isEnoughData(is_train = False)):
+            while(self.dataloader.is_enough_data(is_train = False)):
                 inputs, ground_truths = self.dataloader.next_test_batch()
                 loss, metric = self.predict(inputs, ground_truths, is_train=False)
                 test_loss.append(loss.numpy())
                 test_metric.append(metric.numpy())
 
-            template = '>>> Epoch {}/{}, Train Loss: {:.4f}, Train Metric: {:.4f}, Test Loss: {:.4f}, Test Metric: {:.4f}'.format(
-                                epoch + 1, self.nepochs, 
+            template = '>>> Epoch {}, Train Loss: {:.4f}, Train Metric: {:.4f}, Test Loss: {:.4f}, Test Metric: {:.4f}'.format(
+                                self.epochs + 1, 
                                 np.mean(train_loss), np.mean(train_metric), 
                                 np.mean(test_loss), np.mean(test_metric))
-            print(template)
-            if epoch + 1 > self.checkpoint_since_epoch:
-                self.save_weights(
-                    epoch,
-                    np.mean(train_loss), np.mean(train_metric), 
-                    np.mean(test_loss), np.mean(test_metric)
-                )
+            self.save_weights(
+                epoch,
+                np.mean(train_loss), np.mean(train_metric), 
+                np.mean(test_loss), np.mean(test_metric)
+            )
             self.dataloader.shuffle()
             self.dataloader.reset()
 
@@ -88,6 +86,7 @@ class UNETTrainer():
     @tf.function
     def predict(self, inputs, ground_truths, is_train=True):
         preds = self.model(inputs, training=is_train)
+        import pdb ; pdb.set_trace()
 
         loss = self.loss(preds, ground_truths)
         metric = self.metric(preds, ground_truths)
@@ -103,9 +102,7 @@ class UNETTrainer():
                    + f"{test_loss:.5f}_{test_metric:.5f}"
 
         dir_path = os.path.join(self.saved_model_dir, dir_name)
-        if not os.path.isdir(self.saved_model_dir):
-            os.mkdir(self.saved_model_dir)
-        os.mkdir(dir_path)
+        ensure_dir(dir_path)
         self.model.save_weights(dir_path + "/saved", save_format="tf")
 
     

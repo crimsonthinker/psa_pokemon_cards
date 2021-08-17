@@ -8,7 +8,10 @@ import json
 from utils.utilities import ensure_dir
 
 class UNETPreProcessor(object):
-    def __init__(self):
+    def __init__(self,
+        original_height,
+        original_width,
+        dim):
         self.train_read_path = os.path.join("unet_labeled", "train")
         self.test_read_path = os.path.join("unet_labeled", "test")
         self.train_save_path = os.path.join(".preprocessed_train", "UNET", "train")
@@ -20,7 +23,7 @@ class UNETPreProcessor(object):
         self.train_image_paths = []
         self.test_image_paths = []
 
-        self.shape = (2698, 1620, 3)
+        self.shape = (original_height, original_width, dim)
         self.dim = (405, 506)
 
     def load(self):

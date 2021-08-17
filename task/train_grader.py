@@ -10,8 +10,6 @@ if __name__ == '__main__':
         help="Clean log folder")
     parser.add_argument("--clean_checkpoints", action='store_true', default = False,
         help="Clean checkpoints folder of the model")
-    parser.add_argument("--train_directory", type=str, default='data', nargs='?',
-        help="Training directory")
     parser.add_argument("--img_height", type=int, default=512, nargs='?',
         help="Image height for the training session")
     parser.add_argument("--img_width", type=int, default=512, nargs='?',
@@ -33,7 +31,6 @@ if __name__ == '__main__':
     # run raining session
     image_dataset = GraderImageLoader(
         skip_preprocessing = True,
-        train_directory = args.train_directory,
         img_height = args.img_height,
         img_width = args.img_width,
         batch_size = args.batch_size,
