@@ -14,8 +14,8 @@ class UNETPreProcessor(object):
         dim):
         self.train_read_path = os.path.join("unet_labeled", "train")
         self.test_read_path = os.path.join("unet_labeled", "test")
-        self.train_save_path = os.path.join(".preprocessed_train", "UNET", "train")
-        self.test_save_path = os.path.join(".preprocessed_train", "UNET", "test")
+        self.train_save_path = os.path.join("preprocessed_data", "UNET", "train")
+        self.test_save_path = os.path.join("preprocessed_data", "UNET", "test")
 
         ensure_dir(self.train_save_path)
         ensure_dir(self.test_save_path)

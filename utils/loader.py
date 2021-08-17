@@ -38,12 +38,8 @@ class GraderImageLoader(object):
         """
         self._train_directory = kwargs.get('train_directory', None)
         self._grade_path = kwargs.get('grade_path', os.path.join('data', 'grades.csv'))
-        self._skip_preprocessing = kwargs.get('skip_preprocessing', False)
-        self._preprocessed_dataset_path = '.preprocessed_train'
-        if not self._skip_preprocessing:
-            if os.path.exists(self._preprocessed_dataset_path):
-                shutil.rmtree(self._preprocessed_dataset_path)
-            ensure_dir(self._preprocessed_dataset_path)
+        self._preprocessed_dataset_path = 'preprocessed_data'
+        ensure_dir(self._preprocessed_dataset_path)
         self._logger = get_logger("GraderImageLoader")
 
         self._batch_size = kwargs.get('batch_size', 32)
@@ -309,7 +305,7 @@ class UNETDataLoader(object):
         self.batch_size = batch_size
         self.shape = (original_height, original_width, dim)
         self.dim = (405, 506)
-        self.data_path = os.path.join(".preprocessed_train", "UNET", "train")
+        self.data_path = os.path.join("preprocessed_data", "UNET", "train")
         self.image_paths = []
 
         self.train_paths = []

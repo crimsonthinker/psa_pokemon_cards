@@ -19,8 +19,8 @@ if __name__ == '__main__':
         help="Enable ray multiprocessing")
     args = parser.parse_args()
 
-    if os.path.isfile(os.path.join(".preprocessed_train", "metadata.json")):
-        with open(os.path.join(".preprocessed_train", "metadata.json"), 'r') as f:
+    if os.path.isfile(os.path.join("preprocessed_data", "metadata.json")):
+        with open(os.path.join("preprocessed_data", "metadata.json"), 'r') as f:
             metadata = json.load(f)
     else:
         metadata = {}
@@ -52,5 +52,5 @@ if __name__ == '__main__':
         }
 
     # save metadata
-    with open(os.path.join(".preprocessed_train", "metadata.json"), 'w') as f:
+    with open(os.path.join("preprocessed_data", "metadata.json"), 'w') as f:
         json.dump(metadata, f, indent = 4)
