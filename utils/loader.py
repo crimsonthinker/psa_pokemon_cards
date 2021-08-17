@@ -11,6 +11,9 @@ import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
 import random
+import ray
+from ray.actor import ActorHandle
+from utils.ray_progress_bar import ProgressBar, ProgressBarActor
 
 from utils.utilities import *
 from utils.preprocessor import *
@@ -45,6 +48,7 @@ class GraderImageLoader(object):
 
         self._batch_size = kwargs.get('batch_size', 32)
         self._val_ratio = kwargs.get('val_ratio', 0.3)
+        self._enable_ray = kwargs.get('enable_ray', False)
         self._images = None
         self._images_file_name = None
         self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
@@ -66,27 +70,55 @@ class GraderImageLoader(object):
         self._images = []
         self._identifiers = []
         self.failed_images = []
-
-        def _extract_contour(name : str):
-            try:
-                folders = name.split("/")
-                identifier = folders[-1]
-                back_image = os.path.join(name, "back.jpg")
-                front_image = os.path.join(name, "front.jpg")
-                back_image = imread(back_image)
-                front_image = imread(front_image)
-                preprocessed_image = self._preprocess(back_image, front_image, score_type)
-                # append the preprocessed image
-                if preprocessed_image is not None:
-                    resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
-                    return (identifier, resized_preprocessed_image)
-                else:
-                    return (identifier, None)
-            except:
-                return (identifier, None)
-
         file_names = list(glob.glob(os.path.join(self._train_directory, '*')))
-        results = [_extract_contour(name) for name in tqdm(file_names)]
+        if self._enable_ray:
+            @ray.remote
+            def _extract_contour(name : str, pba : ActorHandle):
+                try:
+                    folders = name.split("/")
+                    identifier = folders[-1]
+                    back_image = os.path.join(name, "back.jpg")
+                    front_image = os.path.join(name, "front.jpg")
+                    back_image = imread(back_image)
+                    front_image = imread(front_image)
+                    preprocessed_image = self._preprocess(back_image, front_image, score_type)
+                    # append the preprocessed image
+                    if preprocessed_image is not None:
+                        resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
+                        pba.update.remote(1)
+                        return (identifier, resized_preprocessed_image)
+                    else:
+                        pba.update.remote(1)
+                        return (identifier, None)
+                except:
+                    pba.update.remote(1)
+                    return (identifier, None)
+            ray.init()
+            pb = ProgressBar(len(file_names))
+            actor = pb.actor
+            results = [_extract_contour.remote(name, actor) for name in file_names]
+            pb.print_until_done()
+            results = ray.get(results)
+            ray.shutdown()
+        else:
+            def _extract_contour(name : str):
+                try:
+                    folders = name.split("/")
+                    identifier = folders[-1]
+                    back_image = os.path.join(name, "back.jpg")
+                    front_image = os.path.join(name, "front.jpg")
+                    back_image = imread(back_image)
+                    front_image = imread(front_image)
+                    preprocessed_image = self._preprocess(back_image, front_image, score_type)
+                    # append the preprocessed image
+                    if preprocessed_image is not None:
+                        resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
+                        return (identifier, resized_preprocessed_image)
+                    else:
+                        return (identifier, None)
+                except:
+                    return (identifier, None)
+            results = [_extract_contour(name) for name in tqdm(file_names)]
         results = [x for x in results if x is not None]
         self._identifiers = [x[0] for x in results if x[1] is not None]
         self._images = [x[1] for x in results if x[1] is not None]

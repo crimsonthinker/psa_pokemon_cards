@@ -15,6 +15,8 @@ if __name__ == '__main__':
         help="Image didmension for the training session")
     parser.add_argument("--model_score_type", type=str, default=[], nargs='+',
         help="Score type of the model. Leave blank if run all.")
+    parser.add_argument("--enable_ray", action='store_true', default = False,
+        help="Enable ray multiprocessing")
     args = parser.parse_args()
 
     if os.path.isfile(os.path.join(".preprocessed_train", "metadata.json")):
@@ -28,7 +30,8 @@ if __name__ == '__main__':
         skip_preprocessing = False,
         train_directory = args.train_directory,
         img_height = args.img_height,
-        img_width = args.img_width)
+        img_width = args.img_width,
+        enable_ray = args.enable_ray)
 
     if len(args.model_score_type) == 0:
         score_types = ['Centering', 'Surface', 'Corners', 'Edges']
