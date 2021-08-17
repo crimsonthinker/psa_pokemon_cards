@@ -42,7 +42,7 @@ if __name__ == '__main__':
     for score_type in score_types:
         print(f"Generating data of score {score_type}")
         # load the image from train directory
-        image_dataset.load(score_type)
+        image_dataset.preprocess(score_type)
 
         metadata[score_type] = {
             'img_height' : args.img_height,

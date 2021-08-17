@@ -221,7 +221,7 @@ class GraderImageLoader(object):
                 num_repeat[identifier] = 1
             cv2.imwrite(os.path.join(root_train_path,f'{identifier}_{repetition}.jpg'), rgb_image)
                 
-    def _load(self, score_type):
+    def load(self, score_type):
         """Perform loading the images and split into datasets
         """
         autotune = tf.data.AUTOTUNE
@@ -278,21 +278,20 @@ class GraderImageLoader(object):
         """
         return self._validation_img_ds
 
-    def load(self, score_type):
-        """Load images from directory and split into sets
+    def preprocess(self, score_type):
+        """Preprocess data
+
+        Args:
+            score_type ([type]): [description]
         """
-        if not self._skip_preprocessing:
-            self._logger.info(f"Perform splitting")
-            self._split_and_preprocess(score_type)
+        self._logger.info(f"Perform splitting")
+        self._split_and_preprocess(score_type)
 
-            self._logger.info(f"Oversampling data")
-            self._oversampling(score_type)
+        self._logger.info(f"Oversampling data")
+        self._oversampling(score_type)
 
-            self._logger.info("Save dataset to folder")
-            self._save(score_type)
-
-        self._logger.info(f"Load images into train and val data")
-        self._load(score_type)
+        self._logger.info("Save dataset to folder")
+        self._save(score_type)
 
 
 class UNETDataLoader(object):
