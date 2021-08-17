@@ -10,6 +10,8 @@ if __name__ == '__main__':
         help="Clean log folder")
     parser.add_argument("--clean_checkpoints", action='store_true', default = False,
         help="Clean checkpoints folder of the model")
+    parser.add_argument("--preprocessed", type=int, default=512, nargs='?',
+        help="Image height for the training session")
     parser.add_argument("--img_height", type=int, default=512, nargs='?',
         help="Image height for the training session")
     parser.add_argument("--img_width", type=int, default=512, nargs='?',
