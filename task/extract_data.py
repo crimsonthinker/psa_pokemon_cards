@@ -1,5 +1,5 @@
 import argparse
-from utils.loader import ImageLoader
+from utils.loader import GraderImageLoader
 import json
 import os
 
@@ -24,7 +24,7 @@ if __name__ == '__main__':
         metadata = {}
 
     # run raining session
-    image_dataset = ImageLoader(
+    image_dataset = GraderImageLoader(
         skip_preprocessing = False,
         train_directory = args.train_directory,
         img_height = args.img_height,

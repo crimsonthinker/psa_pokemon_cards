@@ -1,152 +1,124 @@
 name: psa
 channels:
-  - conda-forge
   - defaults
 dependencies:
   - _libgcc_mutex=0.1=main
   - _openmp_mutex=4.5=1_gnu
-  - abseil-cpp=20210324.0=h9c3ff4c_0
-  - absl-py=0.13.0=pyhd8ed1ab_0
-  - aiohttp=3.7.4.post0=py37h5e8e339_0
-  - astor=0.8.1=pyh9f0ad1d_0
-  - astunparse=1.6.3=pyhd8ed1ab_0
-  - async-timeout=3.0.1=py_1000
-  - attrs=21.2.0=pyhd8ed1ab_0
-  - blinker=1.4=py_1
-  - brotlipy=0.7.0=py37h5e8e339_1001
-  - c-ares=1.17.1=h7f98852_1
-  - ca-certificates=2021.5.30=ha878542_0
-  - cachetools=4.2.2=pyhd8ed1ab_0
-  - certifi=2021.5.30=py37h89c1867_0
-  - cffi=1.14.6=py37hc58025e_0
-  - chardet=4.0.0=py37h89c1867_1
-  - charset-normalizer=2.0.0=pyhd8ed1ab_0
-  - click=8.0.1=py37h89c1867_0
-  - cryptography=3.4.7=py37h5d9358c_0
-  - dataclasses=0.8=pyhc8e2a94_1
-  - gast=0.3.3=py_0
-  - giflib=5.2.1=h36c2ea0_2
-  - google-auth=1.33.1=pyh6c4a22f_0
-  - google-auth-oauthlib=0.4.1=py_2
-  - google-pasta=0.2.0=pyh8c360ce_0
-  - grpc-cpp=1.37.1=h36de60a_0
-  - grpcio=1.37.1=py37hb27c1af_0
-  - h5py=2.10.0=nompi_py37ha3df211_106
-  - hdf5=1.10.6=nompi_h6a2412b_1114
-  - icu=68.1=h58526e2_0
-  - idna=3.1=pyhd3deb0d_0
-  - jpeg=9d=h36c2ea0_0
-  - keras-preprocessing=1.1.2=pyhd8ed1ab_0
-  - krb5=1.19.2=hcc1bbae_0
+  - ca-certificates=2021.7.5=h06a4308_1
+  - certifi=2021.5.30=py38h06a4308_0
   - ld_impl_linux-64=2.35.1=h7274673_9
-  - libblas=3.9.0=10_openblas
-  - libcblas=3.9.0=10_openblas
-  - libcurl=7.78.0=h2574ce0_0
-  - libedit=3.1.20191231=he28a2e2_2
-  - libev=4.33=h516909a_1
   - libffi=3.3=he6710b0_2
   - libgcc-ng=9.3.0=h5101ec6_17
-  - libgfortran-ng=11.1.0=h69a702a_0
-  - libgfortran5=11.1.0=h6c583b3_0
   - libgomp=9.3.0=h5101ec6_17
-  - liblapack=3.9.0=10_openblas
-  - libnghttp2=1.43.0=h812cca2_0
-  - libopenblas=0.3.17=pthreads_h8fe5266_1
-  - libpng=1.6.37=h21135ba_2
-  - libprotobuf=3.15.8=h780b84a_0
-  - libssh2=1.9.0=ha56f1ee_6
   - libstdcxx-ng=9.3.0=hd4cf53a_17
-  - markdown=3.3.4=pyhd8ed1ab_0
-  - multidict=5.1.0=py37h5e8e339_1
   - ncurses=6.2=he6710b0_1
-  - numpy=1.21.1=py37h038b26d_0
-  - oauthlib=3.1.1=pyhd8ed1ab_0
-  - openssl=1.1.1k=h7f98852_0
-  - opt_einsum=3.3.0=pyhd8ed1ab_1
-  - pip=21.1.3=py37h06a4308_0
-  - protobuf=3.15.8=py37hcd2ae1e_0
-  - pyasn1=0.4.8=py_0
-  - pyasn1-modules=0.2.7=py_0
-  - pycparser=2.20=pyh9f0ad1d_2
-  - pyjwt=2.1.0=pyhd8ed1ab_0
-  - pyopenssl=20.0.1=pyhd8ed1ab_0
-  - pysocks=1.7.1=py37h89c1867_3
-  - python=3.7.10=h12debd9_4
-  - python-flatbuffers=1.12=pyhd8ed1ab_1
-  - python_abi=3.7=2_cp37m
-  - pyu2f=0.1.5=pyhd8ed1ab_0
-  - re2=2021.04.01=h9c3ff4c_0
+  - openssl=1.1.1k=h27cfd23_0
+  - pip=21.0.1=py38h06a4308_0
+  - python=3.8.11=h12debd9_0_cpython
   - readline=8.1=h27cfd23_0
-  - requests=2.26.0=pyhd8ed1ab_0
-  - requests-oauthlib=1.3.0=pyh9f0ad1d_0
-  - rsa=4.7.2=pyh44b312d_0
-  - scipy=1.7.0=py37h29e03ee_1
-  - setuptools=52.0.0=py37h06a4308_0
-  - six=1.16.0=pyh6c4a22f_0
-  - snappy=1.1.8=he1b5a44_3
+  - setuptools=52.0.0=py38h06a4308_0
   - sqlite=3.36.0=hc218d9a_0
-  - tensorboard=2.4.1=pyhd8ed1ab_0
-  - tensorboard-plugin-wit=1.8.0=pyh44b312d_0
-  - tensorflow=2.4.1=py37h89c1867_0
-  - tensorflow-base=2.4.1=py37he2fe834_0
-  - tensorflow-estimator=2.4.0=pyh9656e83_0
-  - termcolor=1.1.0=py_2
   - tk=8.6.10=hbc83047_0
-  - typing-extensions=3.10.0.0=hd8ed1ab_0
-  - typing_extensions=3.10.0.0=pyha770c72_0
-  - urllib3=1.26.6=pyhd8ed1ab_0
-  - werkzeug=2.0.1=pyhd8ed1ab_0
-  - wheel=0.36.2=pyhd3eb1b0_0
-  - wrapt=1.12.1=py37h5e8e339_3
+  - wheel=0.37.0=pyhd3eb1b0_0
   - xz=5.2.5=h7b6447c_0
-  - yarl=1.6.3=py37h5e8e339_2
-  - zipp=3.5.0=pyhd8ed1ab_0
   - zlib=1.2.11=h7b6447c_3
   - pip:
+    - absl-py==0.13.0
+    - aiohttp==3.7.4.post0
+    - aiohttp-cors==0.7.0
+    - aioredis==1.3.1
+    - astunparse==1.6.3
+    - async-timeout==3.0.1
+    - attrs==21.2.0
     - backcall==0.2.0
+    - blessings==1.7
+    - cachetools==4.2.2
+    - chardet==4.0.0
+    - charset-normalizer==2.0.4
+    - clang==5.0
+    - click==8.0.1
+    - colorama==0.4.4
     - cycler==0.10.0
     - debugpy==1.4.1
     - decorator==5.0.9
-    - imageio==2.9.0
-    - importlib-metadata==3.10.1
-    - imutils==0.5.4
-    - ipykernel==6.0.3
-    - ipython==7.25.0
+    - filelock==3.0.12
+    - flatbuffers==1.12
+    - gast==0.4.0
+    - google-api-core==1.31.1
+    - google-auth==1.34.0
+    - google-auth-oauthlib==0.4.5
+    - google-pasta==0.2.0
+    - googleapis-common-protos==1.53.0
+    - gpustat==0.6.0
+    - grpcio==1.39.0
+    - h5py==3.1.0
+    - hiredis==2.0.0
+    - idna==3.2
+    - ipykernel==6.1.0
+    - ipython==7.26.0
     - ipython-genutils==0.2.0
     - jedi==0.18.0
-    - joblib==1.0.1
     - jsonschema==3.2.0
     - jupyter-client==6.1.12
     - jupyter-core==4.7.1
+    - keras==2.6.0
+    - keras-preprocessing==1.1.2
     - kiwisolver==1.3.1
-    - matplotlib==3.4.2
+    - markdown==3.3.4
+    - matplotlib==3.4.3
     - matplotlib-inline==0.1.2
-    - nbformat==5.1.3
-    - networkx==2.6.2
+    - msgpack==1.0.2
+    - multidict==5.1.0
+    - numpy==1.19.5
+    - nvidia-ml-py3==7.352.0
+    - oauthlib==3.1.1
+    - opencensus==0.7.13
+    - opencensus-context==0.1.2
     - opencv-python==4.5.3.56
+    - opt-einsum==3.3.0
+    - packaging==21.0
     - pandas==1.3.1
     - parso==0.8.2
     - pexpect==4.8.0
     - pickleshare==0.7.5
     - pillow==8.3.1
-    - plotly==5.1.0
+    - plotly==5.2.1
+    - prometheus-client==0.11.0
     - prompt-toolkit==3.0.19
+    - protobuf==3.17.3
+    - psutil==5.8.0
     - ptyprocess==0.7.0
+    - py-spy==0.3.8
+    - pyasn1==0.4.8
+    - pyasn1-modules==0.2.8
+    - pydantic==1.8.2
     - pygments==2.9.0
     - pyparsing==2.4.7
     - pyrsistent==0.18.0
     - python-dateutil==2.8.2
     - pytz==2021.1
-    - pywavelets==1.1.1
-    - pyzmq==22.1.0
-    - scikit-image==0.18.2
-    - scikit-learn==0.24.2
-    - sklearn==0.0
+    - pyyaml==5.4.1
+    - pyzmq==22.2.1
+    - ray==1.5.2
+    - redis==3.5.3
+    - requests==2.26.0
+    - requests-oauthlib==1.3.0
+    - rsa==4.7.2
+    - six==1.15.0
     - tenacity==8.0.1
-    - threadpoolctl==2.2.0
-    - tifffile==2021.7.2
+    - tensorboard==2.6.0
+    - tensorboard-data-server==0.6.1
+    - tensorboard-plugin-wit==1.8.0
+    - tensorflow==2.6.0
+    - tensorflow-estimator==2.6.0
+    - termcolor==1.1.0
     - tornado==6.1
     - tqdm==4.62.0
     - traitlets==5.0.5
+    - typing-extensions==3.7.4.3
+    - urllib3==1.26.6
     - wcwidth==0.2.5
+    - werkzeug==2.0.1
+    - wrapt==1.12.1
+    - yarl==1.6.3
 prefix: /home/khoa/miniconda3/envs/psa

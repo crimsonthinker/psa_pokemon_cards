@@ -131,7 +131,7 @@ class VGG16Grader(object):
     def set_epoch(self, new_epoch : int):
         self._epochs = new_epoch
 
-    def train_and_evaluate(self, dataset : ImageLoader):
+    def train_and_evaluate(self, dataset : GraderImageLoader):
         try:
             self._logger.info(f"""
                 Traning VGG16ImageGrader:

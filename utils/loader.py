@@ -1,7 +1,6 @@
 import collections
-from logging import root
-from pdb import set_trace
-from matplotlib.image import imread, imsave
+from tensorflow import convert_to_tensor
+from matplotlib.image import imread
 import glob
 import os
 import cv2
@@ -16,7 +15,7 @@ import random
 from utils.utilities import *
 from utils.preprocessor import *
 
-class ImageLoader(object):
+class GraderImageLoader(object):
     """An image preprocessor class for preprocessing image dataset
     and split them into training and testing set for model training
 
@@ -30,7 +29,7 @@ class ImageLoader(object):
         skip_preprocessing [bool] : Indicating whether to skip the preprocessing part 
         batch_size [int] : batch size for the dataset. Defaults as 32.
         oversampling_ratio_over_max [float] : A sampling ratio between the number of images in a label and the maximum number of images in one label.
-        validation_split [float] : ratio for validation split
+        val_ratio [float] : ratio for validation split
         img_width [float] : image width for the model's input
         img_height [float] : image height for the model's input
         """
@@ -42,10 +41,10 @@ class ImageLoader(object):
             if os.path.exists(self._preprocessed_dataset_path):
                 shutil.rmtree(self._preprocessed_dataset_path)
             ensure_dir(self._preprocessed_dataset_path)
-        self._logger = get_logger("ImageLoader")
+        self._logger = get_logger("GraderImageLoader")
 
         self._batch_size = kwargs.get('batch_size', 32)
-        self._validation_split = kwargs.get('validation_split', 0.3)
+        self._val_ratio = kwargs.get('val_ratio', 0.3)
         self._images = None
         self._images_file_name = None
         self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
@@ -224,7 +223,7 @@ class ImageLoader(object):
             train_score_list
         ).shuffle(100)
 
-        train_size = int(len(self._train_img_ds) * (1 - self._validation_split))
+        train_size = int(len(self._train_img_ds) * (1 - self._val_ratio))
         val_size = len(self._train_img_ds) - train_size
         train_img_ds = self._train_img_ds.take(train_size)    
         self._validation_img_ds = self._train_img_ds.skip(train_size).take(val_size)
@@ -265,3 +264,89 @@ class ImageLoader(object):
 
         self._logger.info(f"Load images into train and val data")
         self._load(score_type)
+
+
+class UNETDataLoader(object):
+    def __init__(self,
+        batch_size,
+        original_height,
+        original_width,
+        dim,
+        ):
+        self.batch_size = batch_size
+        self.shape = (original_height, original_width, dim)
+        self.dim = (405, 506)
+        self.data_path = os.path.join(".preprocessed_train", "UNET", "train")
+        self.image_paths = []
+
+        self.train_paths = []
+        self.train_pivot = 0
+        self.num_batch4train = -1
+
+        self.test_paths = []
+        self.test_pivot = 0
+        self.num_batch4test = -1
+
+        
+    def load(self):
+        """Load images paths
+        """
+        self.image_paths = [x[0] for x in os.walk(self.data_path)][1:]
+        pass
+
+    def next_train_batch(self):
+        inputs_img = np.zeros([self.batch_size, 512, 512, 3], np.float32)
+        inputs_gtr = np.zeros([self.batch_size, 512, 512, 1], np.float32)
+
+        for i in range(0, self.batch_size, 2):
+            img_path = self.train_paths[self.train_pivot]
+            (inputs_img[i][:506, :405], inputs_img[i+1][:506, :405]),\
+                 (inputs_gtr[i][:506, :405], inputs_gtr[i+1][:506, :405]) = self.dataparser(img_path)
+            self.train_pivot += 1
+        return convert_to_tensor(inputs_img), convert_to_tensor(inputs_gtr)
+
+    def next_test_batch(self):
+        inputs_img = np.zeros([self.batch_size, 512, 512, 3], np.float32)
+        inputs_gtr = np.zeros([self.batch_size, 512, 512, 1], np.float32)
+
+        for i in range(self.batch_size//2):
+            img_path = self.test_paths[self.test_pivot]
+            (inputs_img[i][:506, :405], inputs_img[i+1][:506, :405]),\
+                 (inputs_gtr[i][:506, :405], inputs_gtr[i+1][:506, :405]) = self.dataparser(img_path)
+            self.test_pivot += 1
+        return convert_to_tensor(inputs_img), convert_to_tensor(inputs_gtr)
+    
+    def is_enough_data(self, is_train = True):
+        num_of_remained_data = len(self.train_paths) - (self.train_pivot) if is_train else len(self.test_paths) - (self.test_pivot)
+        return True if num_of_remained_data >= self.batch_size else False
+    
+    def split(self, ratio : float):
+        """Split data into train and validation set
+
+        Args:
+            ratio (float): ratio of validation set
+        """
+        cls_lst = self.image_paths.copy()
+        random.shuffle(cls_lst)
+        split_idx = int(ratio*len(cls_lst))
+        self.train_paths = cls_lst[:split_idx]
+        self.num_batch4train = len(self.train_paths) // self.batch_size
+        self.test_paths = cls_lst[split_idx:]
+        self.num_batch4test = len(self.test_paths) // self.batch_size
+    
+    def shuffle(self):
+        """Shuffling path lists
+        """
+        random.shuffle(self.train_paths)
+        random.shuffle(self.test_paths)
+
+    def reset(self):
+        self.train_pivot = 0
+        self.test_pivot = 0
+
+    def dataparser(self, img_path):
+        input_f = cv2.imread(os.path.join(img_path, "front.jpg"), cv2.IMREAD_COLOR).astype(np.float32) / 255.0
+        input_b = cv2.imread(os.path.join(img_path, "back.jpg"), cv2.IMREAD_COLOR).astype(np.float32) / 255.0
+        gtr_f = cv2.imread(os.path.join(img_path, "gtr_front.jpg"), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0
+        gtr_b = cv2.imread(os.path.join(img_path, "gtr_back.jpg"), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0
+        return [input_f, input_b], [np.expand_dims(gtr_f, -1), np.expand_dims(gtr_b, -1)]

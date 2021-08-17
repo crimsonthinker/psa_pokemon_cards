@@ -1,5 +1,5 @@
 import argparse
-from utils.loader import ImageLoader
+from utils.loader import GraderImageLoader
 from models.vgg16_grader import VGG16Grader
 
 if __name__ == '__main__':
@@ -22,6 +22,8 @@ if __name__ == '__main__':
         help="Batch size for training session")
     parser.add_argument("--epochs", type=int, default=15, nargs='?',
         help="Number of epochs for training session")
+    parser.add_argument("--val_ratio", type=int, default=0.25, nargs='?',
+        help="Ratio of validation data")
     parser.add_argument("--learning_rate", type=float, default=0.001, nargs='?',
         help="Learning rate for the model")
     parser.add_argument("--model_score_type", type=str, default=[], nargs='+',
@@ -29,12 +31,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # run raining session
-    image_dataset = ImageLoader(
+    image_dataset = GraderImageLoader(
         skip_preprocessing = True,
         train_directory = args.train_directory,
         img_height = args.img_height,
         img_width = args.img_width,
-        batch_size = args.batch_size
+        batch_size = args.batch_size,
+        val_ratio = args.val_ratio
     )
 
     if len(args.model_score_type) == 0:
