@@ -75,8 +75,8 @@ class GraderImageLoader(object):
                     identifier = folders[-1]
                     back_image = os.path.join(name, "back.jpg")
                     front_image = os.path.join(name, "front.jpg")
-                    back_image = imread(back_image)
-                    front_image = imread(front_image)
+                    back_image = np.array(imread(back_image))
+                    front_image = np.array(imread(front_image))
                     preprocessed_image = self._preprocess(back_image, front_image, score_type)
                     # append the preprocessed image
                     if preprocessed_image is not None:
@@ -103,8 +103,8 @@ class GraderImageLoader(object):
                     identifier = folders[-1]
                     back_image = os.path.join(name, "back.jpg")
                     front_image = os.path.join(name, "front.jpg")
-                    back_image = imread(back_image)
-                    front_image = imread(front_image)
+                    back_image = np.array(imread(back_image))
+                    front_image = np.array(imread(front_image))
                     preprocessed_image = self._preprocess(back_image, front_image, score_type)
                     # append the preprocessed image
                     if preprocessed_image is not None:
@@ -130,6 +130,7 @@ class GraderImageLoader(object):
         Return:
             (np.ndarray) : A preprocessed image
         """
+        # make sure that the front and the back is writable
         front_card = None
         if score_type != 'Centering':
             front_card = extract_front_contour_for_pop_image(front_image)

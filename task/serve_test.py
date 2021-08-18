@@ -29,7 +29,7 @@ if __name__ == '__main__':
         if args.model == 'vgg16_grader':
             classifier = VGG16Grader(grade_name = score_type)
 
-        # load the model from .checkpoints
+        # load the model from checkpoint
         classifier.load(args.model_datetime)
 
         # predict from the image directory

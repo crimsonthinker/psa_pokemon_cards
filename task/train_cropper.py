@@ -29,9 +29,9 @@ class UNETTrainer():
         self.epochs = args.epochs
 
         self.current_time = datetime.datetime.now().strftime(SQL_TIMESTAMP)
-        self.saved_model_dir = os.path.join('.checkpoints', 'cropper', self.current_time)
+        self.saved_model_dir = os.path.join('checkpoint', 'cropper', self.current_time)
 
-        self.pretrained_model_path = os.path.join('.checkpoints', 'cropper', 'pretrained')
+        self.pretrained_model_path = os.path.join('checkpoint', 'cropper', 'pretrained')
 
         self.val_ratio = args.val_ratio
 

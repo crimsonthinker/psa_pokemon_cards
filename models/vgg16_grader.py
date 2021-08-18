@@ -40,10 +40,10 @@ class VGG16Grader(object):
             ensure_dir('.log')
 
         # clean checkpoints
-        if os.path.exists(os.path.join('.checkpoints', self._model_name)) and clean_checkpoints:
-            shutil.rmtree(os.path.join('.checkpoints', self._model_name))
-        elif not os.path.exists(os.path.join('.checkpoints', self._model_name)):
-            ensure_dir(os.path.join('.checkpoints', self._model_name))
+        if os.path.exists(os.path.join('checkpoint', self._model_name)) and clean_checkpoints:
+            shutil.rmtree(os.path.join('checkpoint', self._model_name))
+        elif not os.path.exists(os.path.join('checkpoint', self._model_name)):
+            ensure_dir(os.path.join('checkpoint', self._model_name))
 
         self.grade_name = grade_name
         self.max_score = max_score
@@ -87,7 +87,7 @@ class VGG16Grader(object):
         self._construct()
 
         now = datetime.utcnow().strftime(SQL_TIMESTAMP)
-        self._root_path = os.path.join('.checkpoints', self._model.name, now)
+        self._root_path = os.path.join('checkpoint', self._model.name, now)
 
         # add earlyStopping
         # use val_loss for monitoring
@@ -188,7 +188,7 @@ class VGG16Grader(object):
         if timestamp is None:
             # get the lastest checkpoint provided that the timestamp is None
             max_datetime = None
-            for f_name in glob.glob(os.path.join(".checkpoints", self._model_name, '*')):
+            for f_name in glob.glob(os.path.join("checkpoint", self._model_name, '*')):
                 _,_, d_time = f_name.split('/')
                 if max_datetime is None:
                     max_datetime = d_time
@@ -201,7 +201,7 @@ class VGG16Grader(object):
             return
 
         # load the model
-        self._root_path = os.path.join('.checkpoints', self._model_name, max_datetime)
+        self._root_path = os.path.join('checkpoint', self._model_name, max_datetime)
         model = tf.keras.models.load_model(self._root_path)
         self._data_augmentation = model.layers[0]
         self._base_model = model.layers[1]
