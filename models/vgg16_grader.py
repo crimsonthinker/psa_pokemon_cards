@@ -161,7 +161,7 @@ class VGG16Grader(object):
 
         # save class names as pickle
         with open(os.path.join(self._root_path, 'history.pkl'), 'wb') as f:
-            pickle.dump(self._history, f)
+            pickle.dump(self._history.history, f)
 
     def save_metadata(self):
         # Update new root path
