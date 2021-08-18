@@ -11,7 +11,6 @@ import pandas as pd
 from typing import Union
 import math
 import json
-import pickle
 
 from tensorflow.keras.applications import VGG16
 
@@ -74,11 +73,11 @@ class VGG16Grader(object):
 
         self._layer_only = tf.keras.Sequential([
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(32, 
+            tf.keras.layers.Dense(128, 
                 activation = 'relu',
                 kernel_regularizer = tf.keras.regularizers.l2(0.01)),
             tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Dense(16, 
+            tf.keras.layers.Dense(128, 
                 activation = 'relu',
                 kernel_regularizer = tf.keras.regularizers.l2(0.01)),
             tf.keras.layers.Dropout(0.2),
@@ -160,8 +159,8 @@ class VGG16Grader(object):
         ensure_dir(self._root_path)
 
         # save class names as pickle
-        with open(os.path.join(self._root_path, 'history.pkl'), 'wb') as f:
-            pickle.dump(self._history.history, f)
+        with open(os.path.join(self._root_path, 'history.json'), 'wb') as f:
+            json.dump(self._history.history, f, indent = 4)
 
     def save_metadata(self):
         # Update new root path
