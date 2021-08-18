@@ -219,7 +219,6 @@ class GraderImageLoader(object):
                 num_repeat[identifier] += 1
             else:
                 num_repeat[identifier] = 1
-            print(f"Save files {os.path.join(root_train_path,f'{identifier}_{repetition}.jpg')}")
             cv2.imwrite(os.path.join(root_train_path,f'{identifier}_{repetition}.jpg'), rgb_image)
                 
     def load(self, score_type):
@@ -229,7 +228,6 @@ class GraderImageLoader(object):
 
         # reverse the score during learning since we are using MAPE -> by reversing, small score (which is large score but reversed)
         # will generate larger loss for the model
-        import pdb ; pdb.set_trace()
         root_path = os.path.join(self._preprocessed_dataset_path, score_type)
         train_files = sorted([name for name in glob.glob(os.path.join(root_path, "*"))])
         train_identifier_list = [Path(name).stem.split("_")[0] for name in train_files]
