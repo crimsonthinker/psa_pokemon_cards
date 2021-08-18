@@ -72,15 +72,20 @@ class VGG16Grader(object):
         )
 
         self._layer_only = tf.keras.Sequential([
+            tf.keras.layers.Conv2D(64, (3,3), activation = 'relu'),
+            tf.keras.layers.BatchNormalization(),
+            tf.keras.layers.MaxPooling2D(pool_size = (2,2)),
+            tf.keras.layers.BatchNormalization(),
+            tf.keras.layers.Dropout(0.3),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(128, 
+            tf.keras.layers.Dense(256, 
                 activation = 'relu',
                 kernel_regularizer = tf.keras.regularizers.l2(0.01)),
             tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Dense(128, 
+            tf.keras.layers.Dense(256, 
                 activation = 'relu',
                 kernel_regularizer = tf.keras.regularizers.l2(0.01)),
-            tf.keras.layers.Dropout(0.2),
+            tf.keras.layers.Dropout(0.3),
             tf.keras.layers.Dense(1, activation = 'sigmoid')
         ], name = 'meaty_layer')
 
@@ -117,7 +122,7 @@ class VGG16Grader(object):
         self._model.compile(
             optimizer = tf.keras.optimizers.Adam(
                 learning_rate = lr_schedule),
-            loss = 'mse',
+            loss = 'mae',
             metrics = [
                 'mean_absolute_error',
                 'mse'
@@ -159,7 +164,7 @@ class VGG16Grader(object):
         ensure_dir(self._root_path)
 
         # save class names as pickle
-        with open(os.path.join(self._root_path, 'history.json'), 'wb') as f:
+        with open(os.path.join(self._root_path, 'history.json'), 'w') as f:
             json.dump(self._history.history, f, indent = 4)
 
     def save_metadata(self):
