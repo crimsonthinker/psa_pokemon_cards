@@ -187,7 +187,7 @@ class GraderImageLoader(object):
         else:
             return None
 
-    def _oversampling(self, score_type):
+    def _oversampling(self, score_type, max_examples_per_score = 500):
         image_map = {self._identifiers[x] : self._images[x] for x in range(len(self._identifiers))}
         scores_table = self._grades[score_type]
         counter = collections.defaultdict(list)
@@ -197,6 +197,8 @@ class GraderImageLoader(object):
             counter[score].append(x)
             if highest_num_examples < len(counter[score]):
                 highest_num_examples = len(counter[score])
+        if max_examples_per_score < highest_num_examples:
+            highest_num_examples = max_examples_per_score
         for score in counter:
             if len(counter[score]) < highest_num_examples:
                 # add images in self._images and self._identifiers

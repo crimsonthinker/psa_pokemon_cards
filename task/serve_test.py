@@ -1,13 +1,14 @@
 import argparse
 import pandas as pd
-from models.vgg16_grader import VGG16Grader
+from models.vgg16_grader_centering import VGG16GraderCentering
+from models.vgg16_grader_corners import VGG16GraderCorners
+from models.vgg16_grader_edges import VGG16GraderEdges
+from models.vgg16_grader_surface import VGG16GraderSurface
 import numpy as np
 from utils.preprocessor import psa_score
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default='vgg16_grader', nargs='?',
-        help="Model name for classification")
     parser.add_argument("--model_score_type", type=str, default=[], nargs='+',
         help="Score type of the model. Leave blank if run all.")
     parser.add_argument("--model_datetime", type=str, default=None, nargs='?',
@@ -19,6 +20,13 @@ if __name__ == '__main__':
     )
     args = parser.parse_args()
 
+    class_mapper = {
+        'Centering' : VGG16GraderCentering,
+        'Surface' : VGG16GraderSurface,
+        'Corners' : VGG16GraderCorners,
+        'Edges' : VGG16GraderEdges
+    }
+
     if len(args.model_score_type) == 0:
         score_types = ['Centering', 'Surface', 'Corners', 'Edges']
     else:
@@ -26,8 +34,7 @@ if __name__ == '__main__':
 
     series = []
     for score_type in score_types:
-        if args.model == 'vgg16_grader':
-            classifier = VGG16Grader(grade_name = score_type)
+        classifier = class_mapper[score_type]()
 
         # load the model from checkpoint
         classifier.load(args.model_datetime)

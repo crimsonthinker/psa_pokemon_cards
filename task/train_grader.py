@@ -1,11 +1,12 @@
 import argparse
 from utils.loader import GraderImageLoader
-from models.vgg16_grader import VGG16Grader
+from models.vgg16_grader_centering import VGG16GraderCentering
+from models.vgg16_grader_corners import VGG16GraderCorners
+from models.vgg16_grader_edges import VGG16GraderEdges
+from models.vgg16_grader_surface import VGG16GraderSurface
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default='vgg16_grader', nargs='?',
-        help="Model name for grading trading cards")
     parser.add_argument("--clean_log", action='store_true', default = False,
         help="Clean log folder")
     parser.add_argument("--clean_checkpoints", action='store_true', default = False,
@@ -39,6 +40,13 @@ if __name__ == '__main__':
         val_ratio = args.val_ratio
     )
 
+    class_mapper = {
+        'Centering' : VGG16GraderCentering,
+        'Surface' : VGG16GraderSurface,
+        'Corners' : VGG16GraderCorners,
+        'Edges' : VGG16GraderEdges
+    }
+
     if len(args.model_score_type) == 0:
         score_types = ['Centering', 'Surface', 'Corners', 'Edges']
     else:
@@ -49,19 +57,17 @@ if __name__ == '__main__':
         # load the image from train directory
         image_dataset.load(score_type)
 
-        if args.model == 'vgg16_grader':
-            model = VGG16Grader(
-                grade_name = score_type,
-                max_score = image_dataset.max_score,
-                img_height = args.img_height,
-                img_width = args.img_width,
-                dim = args.dim,
-                learning_rate = args.learning_rate,
-                epochs = args.epochs,
-                clean_log = args.clean_log,
-                clean_checkpoints = args.clean_checkpoints
-            )
-            model.load()
+        model = class_mapper[score_type](
+            max_score = image_dataset.max_score,
+            img_height = args.img_height,
+            img_width = args.img_width,
+            dim = args.dim,
+            learning_rate = args.learning_rate,
+            epochs = args.epochs,
+            clean_log = args.clean_log,
+            clean_checkpoints = args.clean_checkpoints
+        )
+        model.load()
 
         # train the model
         # new model already been saved in this function

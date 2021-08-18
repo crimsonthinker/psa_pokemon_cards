@@ -11,6 +11,7 @@ import pandas as pd
 from typing import Union
 import math
 import json
+from abc import abstractclassmethod
 
 from tensorflow.keras.applications import VGG16
 
@@ -18,7 +19,7 @@ from utils.utilities import *
 from utils.constants import *
 from utils.loader import *
 
-class VGG16Grader(object):
+class VGG16GraderBase(object):
     def __init__(self, 
         grade_name : str,
         max_score : int = 10,
@@ -71,19 +72,7 @@ class VGG16Grader(object):
             include_top = False
         )
 
-        self._layer_only = tf.keras.Sequential([
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(128, 
-                activation = 'relu',
-                kernel_regularizer = tf.keras.regularizers.l2(0.01)),
-            tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Dense(128, 
-                activation = 'relu',
-                kernel_regularizer = tf.keras.regularizers.l2(0.01)),
-            tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(1, activation = 'sigmoid')
-        ], name = 'meaty_layer')
-
+        self._define_meaty_layer()
         self._construct()
 
         now = datetime.utcnow().strftime(SQL_TIMESTAMP)
@@ -95,6 +84,12 @@ class VGG16Grader(object):
         # print the epoch by setting verbose as 1
         self._cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath = self._root_path, verbose = 1, save_best_only = True)
         self._tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir='./.log/tensorboard', histogram_freq=1)
+
+    @abstractclassmethod
+    def _define_meaty_layer(self):
+        """Define main layer for each aspect of the card
+        """
+        pass
 
     def _construct(self):
         # freeze the layer in VGG16
