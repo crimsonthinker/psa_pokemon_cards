@@ -66,7 +66,7 @@ class GraderImageLoader(object):
         self._images = []
         self._identifiers = []
         self.failed_images = []
-        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))[:100]
+        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))
         if self._enable_ray:
             @ray.remote
             def _extract_contour(name : str, pba : ActorHandle):
