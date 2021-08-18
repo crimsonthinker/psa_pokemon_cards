@@ -112,7 +112,7 @@ class VGG16GraderBase(object):
         self._model.compile(
             optimizer = tf.keras.optimizers.Adam(
                 learning_rate = lr_schedule),
-            loss = 'mse',
+            loss = 'mae',
             metrics = [
                 'mean_absolute_error',
                 'mse'
@@ -154,7 +154,7 @@ class VGG16GraderBase(object):
         ensure_dir(self._root_path)
 
         # save class names as pickle
-        with open(os.path.join(self._root_path, 'history.json'), 'wb') as f:
+        with open(os.path.join(self._root_path, 'history.json'), 'w') as f:
             json.dump(self._history.history, f, indent = 4)
 
     def save_metadata(self):
