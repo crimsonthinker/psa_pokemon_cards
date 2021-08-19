@@ -26,15 +26,11 @@ class VGG16GraderCentering(VGG16GraderBase):
 
     def _define_meaty_layer(self):
         self._layer_only = tf.keras.Sequential([
-            tf.keras.layers.Conv2D(128, (3,3), activation = 'relu'),
-            tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Dropout(0.3),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(256, 
+            tf.keras.layers.Dense(64, 
                 activation = 'relu',
                 kernel_regularizer = tf.keras.regularizers.l2(0.01)),
-            tf.keras.layers.BatchNormalization(),
-            tf.keras.layers.Dense(256, 
+            tf.keras.layers.Dense(64, 
                 activation = 'relu',
                 kernel_regularizer = tf.keras.regularizers.l2(0.01)),
             tf.keras.layers.Dropout(0.3),
