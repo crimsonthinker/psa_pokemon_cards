@@ -27,7 +27,7 @@ class VGG16GraderCorners(VGG16GraderBase):
     def _define_meaty_layer(self):
         self._layer_only = tf.keras.Sequential([
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(256, 
+            tf.keras.layers.Dense(1024, 
                 activation = 'relu',
                 kernel_regularizer = tf.keras.regularizers.l2(0.01)),
             tf.keras.layers.Dropout(0.3),
@@ -35,7 +35,7 @@ class VGG16GraderCorners(VGG16GraderBase):
                 activation = 'relu',
                 kernel_regularizer = tf.keras.regularizers.l2(0.01)),
             tf.keras.layers.Dropout(0.3),
-            tf.keras.layers.Dense(256, 
+            tf.keras.layers.Dense(1024, 
                 activation = 'relu',
                 kernel_regularizer = tf.keras.regularizers.l2(0.01)),
             tf.keras.layers.Dropout(0.3),
