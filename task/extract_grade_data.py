@@ -7,9 +7,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_directory", type=str, default='data', nargs='?',
         help="Training directory")
-    parser.add_argument("--img_height", type=int, default=512, nargs='?',
+    parser.add_argument("--img_height", type=int, default=256, nargs='?',
         help="Image height for the training session")
-    parser.add_argument("--img_width", type=int, default=512, nargs='?',
+    parser.add_argument("--img_width", type=int, default=256, nargs='?',
         help="Image width for the training session")
     parser.add_argument("--dim", type=int, default=3, nargs='?',
         help="Image didmension for the training session")
@@ -27,7 +27,6 @@ if __name__ == '__main__':
 
     # run raining session
     image_dataset = GraderImageLoader(
-        skip_preprocessing = False,
         train_directory = args.train_directory,
         img_height = args.img_height,
         img_width = args.img_width,
