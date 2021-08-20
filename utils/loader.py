@@ -168,7 +168,9 @@ class GraderImageLoader(object):
                 front_bottom, 
                 front_left, 
                 front_right, 
-                cv2.BORDER_REPLICATE
+                cv2.BORDER_CONSTANT,
+                None,
+                value = 0
             )
 
             back_card = cv2.copyMakeBorder(
@@ -177,7 +179,9 @@ class GraderImageLoader(object):
                 back_bottom,
                 back_left,
                 back_right,
-                cv2.BORDER_REPLICATE
+                cv2.BORDER_CONSTANT,
+                None,
+                value = 0
             )
 
             merge_image = np.concatenate((front_card, back_card), axis = 1) # merge
@@ -322,9 +326,7 @@ class UNETDataLoader(object):
     def load(self):
         """Load images paths
         """
-        import pdb ; pdb.set_trace()
         self.image_paths = [x[0] for x in os.walk(self.data_path)][1:]
-        pass
 
     def next_train_batch(self):
         inputs_img = np.zeros([self.batch_size, 512, 512, 3], np.float32)
