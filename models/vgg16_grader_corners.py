@@ -30,6 +30,9 @@ class VGG16GraderCorners(VGG16GraderBase):
             tf.keras.layers.Dense(64, 
                 activation = 'relu',
                 kernel_regularizer = tf.keras.regularizers.l2(0.01)),
+            tf.keras.layers.Dense(64, 
+                activation = 'relu',
+                kernel_regularizer = tf.keras.regularizers.l2(0.01)),
             tf.keras.layers.Dropout(0.3),
             tf.keras.layers.Dense(1, activation = 'sigmoid')
         ], name = 'meaty_layer')

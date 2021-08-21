@@ -68,7 +68,7 @@ class UNETPreProcessor(object):
         cv2.imwrite("{}/gtr_front.jpg".format(img_folder), gtr_f)
         cv2.imwrite("{}/gtr_back.jpg".format(img_folder), gtr_b)
 
-def extract_front_contour_for_pop_image(image : np.ndarray):
+def extract_contour_for_pop_image(image : np.ndarray):
     """Extract cards from images
 
     Args:
@@ -108,7 +108,7 @@ def extract_front_contour_for_pop_image(image : np.ndarray):
     else:
         return None
 
-def extract_front_contour_for_dim_image(image : np.ndarray):
+def extract_contour_for_dim_image(image : np.ndarray):
     """[summary]
 
     Args:

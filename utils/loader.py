@@ -8,10 +8,12 @@ import tensorflow as tf
 import numpy as np
 import shutil
 import pandas as pd
+from scipy.ndimage import rotate
 from pathlib import Path
 from tqdm import tqdm
 import random
 import ray
+import traceback
 from ray.actor import ActorHandle
 from utils.ray_progress_bar import ProgressBar, ProgressBarActor
 
@@ -66,7 +68,7 @@ class GraderImageLoader(object):
         self._images = []
         self._identifiers = []
         self.failed_images = []
-        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))
+        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))[:100]
         if self._enable_ray:
             @ray.remote
             def _extract_contour(name : str, pba : ActorHandle):
@@ -113,6 +115,7 @@ class GraderImageLoader(object):
                     else:
                         return (identifier, None)
                 except:
+                    print(traceback.format_exc())
                     return (identifier, None)
             results = [_extract_contour(name) for name in tqdm(file_names)]
         results = [x for x in results if x is not None]
@@ -130,66 +133,92 @@ class GraderImageLoader(object):
         Return:
             (np.ndarray) : A preprocessed image
         """
+
+        def pad_card(image : np.ndarray, desire_shape : tuple):
+            height, width, _ = image.shape
+            desire_height = desire_shape[0]
+            desire_width = desire_shape[1]
+            top = int((desire_height - height) / 2)
+            bottom = int((desire_height - height) / 2) + ((desire_height - height) % 2)
+            left = int((desire_width - width) / 2)
+            right = int((desire_width - width) / 2) + ((desire_width - width) % 2)
+
+            return cv2.copyMakeBorder(
+                image, 
+                top, 
+                bottom, 
+                left, 
+                right, 
+                cv2.BORDER_CONSTANT,
+                None,
+                value = 0
+            )
+
+        def extract_card(image : np.ndarray, score_type : str):
+            # TODO: Use U-Net to extract card
+            # card = UNetSomething(...)
+            card = None
+            if card is None:
+                # front card not exist
+                # border got messed up
+                card_pop = extract_contour_for_pop_image(image)
+                card_dim = extract_contour_for_dim_image(image)
+                if card_pop is not None or card_dim is not None:
+                    if card_dim is None:
+                        card = card_pop
+                    elif card_pop is None:
+                        card = card_dim
+                    else:
+                        if card_dim.shape[0] * card_dim.shape[1] < card_pop.shape[0] * card_pop.shape[1]:
+                            card = card_dim
+                        else:
+                            card = card_pop
+
+            if card is not None:
+                if score_type == 'Centering':
+                    card[150:-150,150:-150] = 0
+                if score_type == 'Corners':
+                    top_left = card[:200,:200, :]
+                    top_right = card[:200,-200:,:]
+                    bottom_left = card[-200:,:200,:]
+                    bottom_right = card[-200:,-200:,:]
+                    top = np.concatenate((top_left, top_right), axis = 1)
+                    bottom = np.concatenate((bottom_left, bottom_right), axis = 1)
+                    card = np.concatenate((top, bottom), axis = 0)
+                elif score_type == 'Edges':
+                    left = rotate(card[:,:200,:], 180)
+                    right = card[:,-200:,:]
+                    top = rotate(card[:200,:,:],-90)
+                    bottom = rotate(card[-200:,:,:],90)
+                    max_height = max(left.shape[0],right.shape[0], top.shape[0], bottom.shape[0])
+                    max_width = max(left.shape[1],right.shape[1], top.shape[1], bottom.shape[1])
+                    # pad top and bottom 
+                    edges = tuple([pad_card(x, (max_height, max_width)) for x in [left, right, top, bottom]])
+                    card = np.concatenate(edges, axis = 1)
+                elif score_type == 'Surface':
+                    # Do nothing
+                    pass
+            return card
+
         # make sure that the front and the back is writable
-        front_card = None
+        front_card = extract_card(front_image, score_type)
+        back_card = extract_card(back_image, score_type)
+
         if score_type != 'Centering':
-            front_card = extract_front_contour_for_pop_image(front_image)
-            if front_card is None:
-                front_card = extract_front_contour_for_dim_image(front_image)
-        if front_card is not None and score_type != 'Surface':
-            front_card[150:-150, 150:-150] = 0
-
-        back_card = extract_front_contour_for_pop_image(back_image)
-        if back_card is None:
-            back_card = extract_front_contour_for_dim_image(back_image)
-        if back_card is not None and score_type != 'Surface':
-            back_card[150:-150,150:-150] = 0
-
-
-        if front_card is not None and back_card is not None:
-            # merge two image
-            front_height, front_width, _ = front_card.shape
-            back_height, back_width, _ = back_card.shape
-            max_height = max(front_height, back_height)
-            max_width = max(front_width, back_width)
-            front_top = int((max_height - front_height) / 2)
-            front_bottom = int((max_height - front_height) / 2) + ((max_height - front_height) % 2)
-            back_top = int((max_height - back_height) / 2)
-            back_bottom = int((max_height - back_height) / 2) + ((max_height - back_height) % 2)
-
-            front_left = int((max_width - front_width) / 2)
-            front_right = int((max_width - front_width) / 2) + ((max_width - front_width) % 2)
-            back_left = int((max_width - back_width) / 2)
-            back_right = int((max_width - back_width) / 2) + ((max_width - back_width) % 2)
-
-            front_card = cv2.copyMakeBorder(
-                front_card, 
-                front_top, 
-                front_bottom, 
-                front_left, 
-                front_right, 
-                cv2.BORDER_CONSTANT,
-                None,
-                value = 0
-            )
-
-            back_card = cv2.copyMakeBorder(
-                back_card,
-                back_top,
-                back_bottom,
-                back_left,
-                back_right,
-                cv2.BORDER_CONSTANT,
-                None,
-                value = 0
-            )
-
-            merge_image = np.concatenate((front_card, back_card), axis = 1) # merge
-            return merge_image
-        elif back_card is not None and score_type == 'Centering':
+            if front_card is not None and back_card is not None:
+                # merge two image
+                front_height, front_width, _ = front_card.shape
+                back_height, back_width, _ = back_card.shape
+                max_height = max(front_height, back_height)
+                max_width = max(front_width, back_width)
+                front_card = pad_card(front_card, (max_height, max_width))
+                back_card = pad_card(back_card, (max_height, max_width))
+                merge_image = np.concatenate((front_card, back_card), axis = 1) # merge
+                return merge_image
+        elif back_card is not None:
             return back_card
-        else:
-            return None
+
+        return None
 
     def _oversampling(self, score_type, max_examples_per_score = 500):
         image_map = {self._identifiers[x] : self._images[x] for x in range(len(self._identifiers))}
