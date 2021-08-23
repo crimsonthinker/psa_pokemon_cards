@@ -156,18 +156,3 @@ def extract_contour_for_dim_image(image : np.ndarray):
         return image[int(y) : int(y + h), int(x) : int(x + w)]
     else:
         return None
-
-def psa_score(p : np.ndarray): # list of scores, range from 0 to 10
-    # round by PSA scoring system
-    lower = np.floor(p)
-    decimal = p - lower
-
-    for i in range(len(p)):
-        if decimal[i] <= 0.25:
-            p[i] = math.floor(p[i])
-        elif decimal[i] > 0.25 and decimal[i] <= 0.5:
-            p[i] = math.floor(p[i]) + 0.5
-        elif decimal[i] > 0.5:
-            p[i] = math.ceil(p[i])
-
-    return p

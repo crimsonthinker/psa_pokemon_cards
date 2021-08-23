@@ -1,22 +1,20 @@
 import collections
-from tensorflow import convert_to_tensor
 from matplotlib.image import imread
 import glob
 import os
 import cv2
 import tensorflow as tf
 import numpy as np
-import shutil
 import pandas as pd
 from scipy.ndimage import rotate
 from pathlib import Path
 from tqdm import tqdm
-import random
 import ray
 import traceback
 from ray.actor import ActorHandle
-from utils.ray_progress_bar import ProgressBar, ProgressBarActor
+import random
 
+from utils.ray_progress_bar import ProgressBar
 from utils.utilities import *
 from utils.preprocessor import *
 
@@ -51,7 +49,15 @@ class GraderImageLoader(object):
         self._images_file_name = None
         self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
         self._grades.index = [str(x) for x in self._grades.index]
+        self._paths = []
         self._identifiers = []
+        self._identifier_scores = []
+        self._train_paths = []
+        self._train_identifiers = []
+        self._train_identifier_scores = []
+        self._val_paths = []
+        self._val_identifiers = []
+        self._val_identifier_scores = []
         self.failed_images_identifiers = []
         self.max_score = 10
 
@@ -123,7 +129,6 @@ class GraderImageLoader(object):
         self._identifiers = [x[0] for x in results if x[1] is not None]
         self._images = [x[1] for x in results if x[1] is not None]
         self.failed_images_identifiers = [x[0] for x in results if x[1] is None]
-
 
     def _preprocess(self, back_image : np.ndarray, front_image : np.ndarray, score_type : str):
         """Preprocess image by cropping content out of contour and merge image
@@ -263,12 +268,29 @@ class GraderImageLoader(object):
         """
         autotune = tf.data.AUTOTUNE
 
-        # reverse the score during learning since we are using MAPE -> by reversing, small score (which is large score but reversed)
-        # will generate larger loss for the model
+        self.train_identifier_list = []
+        # save current score type
+        self.score_type = score_type
+
+        # scaling score from 0-10 to 0-1
         root_path = os.path.join(self._preprocessed_dataset_path, score_type)
-        train_files = sorted([name for name in glob.glob(os.path.join(root_path, "*"))])
-        train_identifier_list = [Path(name).stem.split("_")[0] for name in train_files]
-        train_score_list = [self._grades.loc[x][score_type] / self.max_score for x in train_identifier_list]
+        self._paths = sorted([name for name in glob.glob(os.path.join(root_path, "*"))])
+        self._identifiers = [Path(name).stem.split("_")[0] for name in self._paths]
+        self._identifier_scores = [self._grades.loc[x][score_type] / self.max_score for x in self._identifiers]
+
+        idx_list = list(range(len(self._paths)))
+        random.shuffle(idx_list)
+
+        self._paths = [self._paths[i] for i in idx_list]
+        self._identifiers = [self._identifiers[i] for i in idx_list]
+        self._identifier_scores = [self._identifier_scores[i] for i in idx_list]
+
+        self._train_paths = self._paths[:int(len(self._identifiers) * (1 - self._val_ratio))]
+        self._train_identifiers = self._identifiers[:int(len(self._identifiers) * (1 - self._val_ratio))]
+        self._train_identifier_scores = self._identifier_scores[:int(len(self._identifiers) * (1 - self._val_ratio))]
+        self._val_paths = self._paths[int(len(self._identifiers) * (1 - self._val_ratio)):]
+        self._val_identifiers = self._identifiers[int(len(self._identifiers) * (1 - self._val_ratio)):]
+        self._val_identifier_scores = self._identifier_scores[int(len(self._identifiers) * (1 - self._val_ratio)):]
 
         def _parse(filename : str, label : float):
             image_string = tf.io.read_file(filename)
@@ -285,20 +307,15 @@ class GraderImageLoader(object):
             return data.map(_parse)
 
         self._train_img_ds = _read_dataset(
-            train_files,
-            train_score_list
-        ).shuffle(100)
+            self._train_paths,
+            self._train_identifier_scores
+        ).batch(self._batch_size).cache().prefetch(buffer_size = autotune)
 
-        train_size = int(len(self._train_img_ds) * (1 - self._val_ratio))
-        val_size = len(self._train_img_ds) - train_size
-        train_img_ds = self._train_img_ds.take(train_size)    
-        self._validation_img_ds = self._train_img_ds.skip(train_size).take(val_size)
-        self._train_img_ds = train_img_ds
-
-        self._train_img_ds = self._train_img_ds.batch(self._batch_size).cache().prefetch(buffer_size = autotune)
-        self._validation_img_ds = self._validation_img_ds.batch(self._batch_size).cache().prefetch(buffer_size = autotune)
+        self._validation_img_ds = _read_dataset(
+            self._val_paths,
+            self._val_identifier_scores
+        ).batch(self._batch_size).cache().prefetch(buffer_size = autotune)
         
-
     def get_train_ds(self):
         """Get training image dataset
 
@@ -315,6 +332,14 @@ class GraderImageLoader(object):
         """
         return self._validation_img_ds
 
+    def get_score_type(self):
+        return self.score_type
+    
+    def get_val_identifiers(self):
+        return self._val_identifiers
+        
+    def get_val_scores(self):
+        return self._val_identifier_scores
     def preprocess(self, score_type):
         """Preprocess data
 
@@ -367,7 +392,7 @@ class UNETDataLoader(object):
             (inputs_img[i][:506, :405], inputs_img[i+1][:506, :405]),\
                  (inputs_gtr[i][:506, :405], inputs_gtr[i+1][:506, :405]) = self.dataparser(img_path)
             self.train_pivot += 1
-        return convert_to_tensor(inputs_img), convert_to_tensor(inputs_gtr)
+        return tf.convert_to_tensor(inputs_img), tf.convert_to_tensor(inputs_gtr)
 
     def next_test_batch(self):
         inputs_img = np.zeros([self.batch_size, 512, 512, 3], np.float32)
@@ -378,7 +403,7 @@ class UNETDataLoader(object):
             (inputs_img[i][:506, :405], inputs_img[i+1][:506, :405]),\
                  (inputs_gtr[i][:506, :405], inputs_gtr[i+1][:506, :405]) = self.dataparser(img_path)
             self.test_pivot += 1
-        return convert_to_tensor(inputs_img), convert_to_tensor(inputs_gtr)
+        return tf.convert_to_tensor(inputs_img), tf.convert_to_tensor(inputs_gtr)
     
     def is_enough_data(self, is_train = True):
         num_of_remained_data = len(self.train_paths) - (self.train_pivot) if is_train else len(self.test_paths) - (self.test_pivot)

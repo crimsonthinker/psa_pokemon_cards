@@ -14,6 +14,7 @@ import json
 from abc import abstractclassmethod
 
 from tensorflow.keras.applications import VGG16
+from tensorflow.python.ops.gen_dataset_ops import PrefetchDataset
 
 from utils.utilities import *
 from utils.constants import *
@@ -213,7 +214,10 @@ class VGG16GraderBase(object):
         # reconstruct the model
         self._construct()
 
-    def predict(self, x : Union[np.ndarray, str], batch_size = 32):
+    def get_checkpoint_path(self):
+        return self._root_path
+
+    def predict(self, x : Union[np.ndarray, str, PrefetchDataset], batch_size = 32):
         if isinstance(x, str):
             # glob files
             predicted_filenames = []
@@ -254,7 +258,7 @@ class VGG16GraderBase(object):
                     result.loc[os.path.splitext(filename)[0]] = predictions[t] 
 
             return result
-        else:
+        elif isinstance(x, np.ndarray):
             if x.ndim == 3:
                 # expand dimension of one image to (1, img_height, img_width, 3) -> ndim == 4
                 x = np.expand_dims(x, 0)
@@ -267,9 +271,15 @@ class VGG16GraderBase(object):
             else:
                 predictions = [self._model.predict(x)]
             predictions = [np.squeeze(p, axis = -1) * 10.0 for p in predictions]
-            predictions = np.hstack([psa_score(x) for x in predictions])
+            predictions = np.hstack(predictions)
 
             return predictions
+        else:
+            # not using batch_size from function since PrefetchDataset already has batch_size
+            predictions = self._model.predict(x)
+            predictions = [np.squeeze(p, axis = -1) * 10.0 for p in predictions]
+            return predictions
+            
 
 
 

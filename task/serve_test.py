@@ -46,7 +46,7 @@ if __name__ == '__main__':
 
     final = pd.concat(series, axis = 1)
     final.index = final.index.astype(np.int64)
-    final['Grade'] = psa_score(final.mean(axis = 1).to_numpy())
+    final['Grade'] = final.mean(axis = 1).to_numpy()
 
     # merge with true grade
     if args.grade_ground_truth_path is not None:

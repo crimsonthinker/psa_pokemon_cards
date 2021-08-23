@@ -1,4 +1,6 @@
 import argparse
+import pandas as pd
+import os
 from utils.loader import GraderImageLoader
 from models.vgg16_grader_centering import VGG16GraderCentering
 from models.vgg16_grader_corners import VGG16GraderCorners
@@ -13,9 +15,9 @@ if __name__ == '__main__':
         help="Clean checkpoints folder of the model")
     parser.add_argument("--preprocessed", type=int, default=512, nargs='?',
         help="Image height for the training session")
-    parser.add_argument("--img_height", type=int, default=512, nargs='?',
+    parser.add_argument("--img_height", type=int, default=256, nargs='?',
         help="Image height for the training session")
-    parser.add_argument("--img_width", type=int, default=512, nargs='?',
+    parser.add_argument("--img_width", type=int, default=256, nargs='?',
         help="Image width for the training session")
     parser.add_argument("--dim", type=int, default=3, nargs='?',
         help="Image didmension for the training session")
@@ -57,6 +59,8 @@ if __name__ == '__main__':
         # load the image from train directory
         image_dataset.load(score_type)
 
+        val_score_df = pd.DataFrame(columns = [score_type, f'{score_type}_Ground_Truth'])
+
         model = class_mapper[score_type](
             max_score = image_dataset.max_score,
             img_height = args.img_height,
@@ -78,3 +82,15 @@ if __name__ == '__main__':
 
         # save history
         model.save_history()
+
+        # extract aspect score for each image in validation test
+        outputs = model.predict(image_dataset.get_validation_ds())
+
+        val_identifiers = image_dataset.get_val_identifiers()
+        val_scores = image_dataset.get_val_scores()
+        for identifier, (score, ground_truth_score) in zip(val_identifiers, zip(outputs, val_scores)):
+            val_score_df.loc[identifier] = [score, ground_truth_score]
+
+        # save in checkpoint
+        val_score_df.to_csv(os.path.join(model.get_checkpoint_path(), 'val_result.csv'), index_label = 'Identifier')
+
