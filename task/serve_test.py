@@ -5,7 +5,6 @@ from models.vgg16_grader_corners import VGG16GraderCorners
 from models.vgg16_grader_edges import VGG16GraderEdges
 from models.vgg16_grader_surface import VGG16GraderSurface
 import numpy as np
-from utils.preprocessor import psa_score
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
