@@ -190,8 +190,6 @@ class GraderImageLoader(object):
                     bottom = np.concatenate((bottom_left, bottom_right), axis = 1)
                     card = np.concatenate((top, bottom), axis = 0)
                 elif score_type == 'Edges' or score_type == 'Centering':
-                    # Convert to lab image for prominent edges
-                    card = cv2.cvtColor(card, cv2.COLOR_RGB2LAB)
                     left = rotate(card[:,:200,:], 180)
                     right = card[:,-200:,:]
                     top = rotate(card[:200,:,:],-90)
