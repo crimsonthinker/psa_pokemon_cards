@@ -58,22 +58,6 @@ class VGG16GraderBase(object):
         self._epochs = epochs
         self._history = None
 
-        # only for training
-        self._data_augmentation = tf.keras.Sequential([
-            tf.keras.layers.experimental.preprocessing.RandomFlip(
-                "horizontal", 
-                input_shape=(img_height, img_width,dim)),
-            tf.keras.layers.experimental.preprocessing.RandomRotation(0.3),
-            tf.keras.layers.experimental.preprocessing.RandomZoom(0.3),
-            tf.keras.layers.experimental.preprocessing.RandomContrast(0.3),
-        ], name = 'data_augmentation_layers')
-
-        self._base_model = VGG16(
-            weights = 'imagenet',
-            include_top = False
-        )
-
-        self._define_meaty_layer()
         self._construct()
 
         now = datetime.utcnow().strftime(SQL_TIMESTAMP)
@@ -87,21 +71,49 @@ class VGG16GraderBase(object):
         self._tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir='./.log/tensorboard', histogram_freq=1)
 
     @abstractclassmethod
-    def _define_meaty_layer(self):
+    def _define_meaty_layer(self, inputs):
         """Define main layer for each aspect of the card
         """
         pass
 
+    @abstractclassmethod
+    def _define_remain_layer(self,inputs):
+        """Define preprocess layer
+
+        Args:
+            inputs ([type]): [description]
+        """
+        pass
+
     def _construct(self):
+
+        self._inputs = tf.keras.Input(shape = (self.img_height, self.img_width, self.dim))
+
+        if self.dim > 3:
+            # Create an extra flow to extract tensor outside of rgb image
+            self._image_sliced = tf.keras.layers.Lambda(lambda x : x[:,:,:,:3])(self._inputs)
+            self._remains = tf.keras.layers.Lambda(lambda x : x[:,:,:,3:])(self._inputs)
+        else:
+            self._image_sliced = self._inputs
+            self._remains = None
+
+        # data augmentation part
+        self._random_flip = tf.keras.layers.experimental.preprocessing.RandomFlip("horizontal")(self._image_sliced)
+        self._random_rotation = tf.keras.layers.experimental.preprocessing.RandomRotation(0.3)(self._random_flip)
+        self._random_contrast = tf.keras.layers.experimental.preprocessing.RandomContrast(0.3)(self._random_rotation)
+
+        self._base_model = VGG16(weights = 'imagenet', include_top = False)
         # freeze the layer in VGG16
         for layer in self._base_model.layers:
             layer.trainable = False
+        self._base_model_outputs = self._base_model(self._random_contrast)
+        self._flatten_input = tf.keras.layers.Flatten()(self._base_model_outputs)
+        if self._remains is not None:
+            self._flatten_remains = self._define_remain_layer(self._remains)
+            self._flatten_input = tf.keras.layers.Concatenate(axis = -1)([self._flatten_input, self._flatten_remains])
+        self._outputs = self._define_meaty_layer(self._flatten_input)
 
-        self._model = tf.keras.Sequential([
-            self._data_augmentation,
-            self._base_model,
-            self._layer_only
-        ], name = self._model_name)
+        self._model = tf.keras.Model(inputs = self._inputs, outputs = self._outputs, name = self._model_name)
 
         lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
             initial_learning_rate = self.learning_rate,
@@ -136,8 +148,6 @@ class VGG16GraderBase(object):
                     Maximum score label: {self.max_score}
                 Model summary:""")
             self._model.summary()
-            self._data_augmentation.summary()
-            self._layer_only.summary()
             self._history = self._model.fit(
                 dataset.get_train_ds(),
                 validation_data = dataset.get_validation_ds(),

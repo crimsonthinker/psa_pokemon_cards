@@ -1,3 +1,4 @@
 data/*
 unet_labeled/*
 preprocessed_data/*
+checkpoint/*

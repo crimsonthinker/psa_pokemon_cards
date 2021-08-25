@@ -24,15 +24,10 @@ class VGG16GraderCorners(VGG16GraderBase):
             clean_checkpoints
         )
 
-    def _define_meaty_layer(self):
-        self._layer_only = tf.keras.Sequential([
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(64, 
-                activation = 'relu',
-                kernel_regularizer = tf.keras.regularizers.l2(0.01)),
-            tf.keras.layers.Dense(64, 
-                activation = 'relu',
-                kernel_regularizer = tf.keras.regularizers.l2(0.01)),
-            tf.keras.layers.Dropout(0.3),
-            tf.keras.layers.Dense(1, activation = 'sigmoid')
-        ], name = 'meaty_layer')
+    def _define_meaty_layer(self, inputs):
+        self._flatten = tf.keras.layers.Flatten()(inputs)
+        self._dense_0 = tf.keras.layers.Dense(32, activation = 'relu', kernel_regularizer = tf.keras.regularizers.l2(0.01))(self._flatten)
+        self._dense_1 = tf.keras.layers.Dense(32, activation = 'relu', kernel_regularizer = tf.keras.regularizers.l2(0.01))(self._dense_0)
+        self._dense_2 = tf.keras.layers.Dense(32, activation = 'relu', kernel_regularizer = tf.keras.regularizers.l2(0.01))(self._dense_1)
+        self._dropout = tf.keras.layers.Dropout(0.3)(self._dense_2)
+        return tf.keras.layers.Dense(1, activation = 'sigmoid')(self._dropout)

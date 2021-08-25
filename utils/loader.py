@@ -74,7 +74,7 @@ class GraderImageLoader(object):
         self._images = []
         self._identifiers = []
         self.failed_images = []
-        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))
+        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))[:50]
         if self._enable_ray:
             @ray.remote
             def _extract_contour(name : str, pba : ActorHandle):
@@ -112,8 +112,8 @@ class GraderImageLoader(object):
                     identifier = folders[-1]
                     back_image = os.path.join(name, "back.jpg")
                     front_image = os.path.join(name, "front.jpg")
-                    back_image = np.array(imread(back_image))
-                    front_image = np.array(imread(front_image))
+                    back_image = cv2.cvtColor(np.array(imread(back_image)), cv2.COLOR_BGR2RGB)
+                    front_image = cv2.cvtColor(np.array(imread(front_image)), cv2.COLOR_BGR2RGB)
                     preprocessed_image = self._preprocess(back_image, front_image, score_type)
                     # append the preprocessed image
                     if preprocessed_image is not None:
@@ -197,8 +197,10 @@ class GraderImageLoader(object):
                     max_height = max(left.shape[0],right.shape[0], top.shape[0], bottom.shape[0])
                     max_width = max(left.shape[1],right.shape[1], top.shape[1], bottom.shape[1])
                     # pad top and bottom 
-                    edges = tuple([pad_card(x, (max_height, max_width)) for x in [left, right, top, bottom]])
-                    card = np.concatenate(edges, axis = 1)
+                    obj = tuple([pad_card(x, (max_height, max_width)) for x in [left, right, top, bottom]])
+                    card = np.concatenate(obj, axis = 1)
+                    edg = np.expand_dims(cv2.Canny(card,100, 200), -1)
+                    card = np.concatenate([card,edg], axis = 2)
                 elif score_type == 'Surface':
                     # Do nothing
                     pass
@@ -252,14 +254,13 @@ class GraderImageLoader(object):
         num_repeat = {}
         self._identifiers = [f'{x}_0' for x in self._identifiers]
         for i, train_image in enumerate(self._images):
-            rgb_image = cv2.cvtColor(train_image, cv2.COLOR_BGR2RGB)
             identifier,repetition = self._identifiers[i].split("_")
             if identifier in num_repeat:
                 repetition = num_repeat[identifier]
                 num_repeat[identifier] += 1
             else:
                 num_repeat[identifier] = 1
-            cv2.imwrite(os.path.join(root_train_path,f'{identifier}_{repetition}.jpg'), rgb_image)
+            np.save(os.path.join(root_train_path,f'{identifier}_{repetition}.npy'), train_image)
                 
     def load(self, score_type):
         """Perform loading the images and split into datasets
@@ -270,11 +271,10 @@ class GraderImageLoader(object):
         # save current score type
         self.score_type = score_type
 
-        # scaling score from 0-10 to 0-1
         root_path = os.path.join(self._preprocessed_dataset_path, score_type)
         self._paths = sorted([name for name in glob.glob(os.path.join(root_path, "*"))])
         self._identifiers = [Path(name).stem.split("_")[0] for name in self._paths]
-        self._identifier_scores = [self._grades.loc[x][score_type] / self.max_score for x in self._identifiers]
+        self._identifier_scores = [self._grades.loc[x][score_type] for x in self._identifiers]
 
         idx_list = list(range(len(self._paths)))
         random.shuffle(idx_list)
@@ -290,19 +290,17 @@ class GraderImageLoader(object):
         self._val_identifiers = self._identifiers[int(len(self._identifiers) * (1 - self._val_ratio)):]
         self._val_identifier_scores = self._identifier_scores[int(len(self._identifiers) * (1 - self._val_ratio)):]
 
-        def _parse(filename : str, label : float):
-            image_string = tf.io.read_file(filename)
-            image_decoded = tf.image.decode_jpeg(image_string, channels=3)
-            image_resized = tf.image.resize(image_decoded, (self.img_height,self.img_width))
-            image = tf.cast(image_resized, tf.float32)
-            return image, tf.convert_to_tensor(label)
-
         def _read_dataset(name_list : list, score_list : list):
+            # scaling score from 0-10 to 0-1
+            images = np.array([np.load(filename) for filename in name_list])
+            score_list = [x / self.max_score for x in score_list]
             data = tf.data.Dataset.from_tensor_slices((
-                name_list,
+                images,
                 score_list
             ))
-            return data.map(_parse)
+
+            return data
+
 
         self._train_img_ds = _read_dataset(
             self._train_paths,
