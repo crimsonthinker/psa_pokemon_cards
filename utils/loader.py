@@ -199,11 +199,11 @@ class GraderImageLoader(object):
                     # pad top and bottom 
                     obj = tuple([pad_card(x, (max_height, max_width)) for x in [left, right, top, bottom]])
                     card = np.concatenate(obj, axis = 1)
-                    edg = np.expand_dims(cv2.Canny(card,100, 200), -1)
-                    card = np.concatenate([card,edg], axis = 2)
                 elif score_type == 'Surface':
                     # Do nothing
                     pass
+                edg = np.expand_dims(cv2.Canny(card,100, 200), -1)
+                card = np.concatenate([card,edg], axis = 2)
             return card
 
         # make sure that the front and the back is writable
