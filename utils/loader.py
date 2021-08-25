@@ -204,7 +204,6 @@ class GraderImageLoader(object):
                     pass
                 edg = np.expand_dims(cv2.Canny(card,100, 200), -1)
                 card = np.concatenate([card,edg], axis = 2)
-                import pdb ; pdb.set_trace()
             return card
 
         # make sure that the front and the back is writable
