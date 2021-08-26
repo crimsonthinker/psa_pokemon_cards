@@ -1,4 +1,4 @@
 {
-    "python.pythonPath": "/home/khoa/anaconda3/envs/psa/bin/python",
+    "python.pythonPath": "~/Toolkits/anaconda3/envs/tensorflow/bin/",
     "jupyter.notebookFileRoot": "${workspaceFolder}"
 }

@@ -7,7 +7,7 @@ import datetime
 import argparse
 import json
 
-from models.unet import UNET
+from models.unet import *
 from utils.loader import UNETDataLoader
 
 class UNETTrainer():
@@ -22,9 +22,9 @@ class UNETTrainer():
         self.model.build(input_shape=(1, args.img_height, args.img_width, args.dim))
         
         self.optimizer = tf.keras.optimizers.Adam(lr=5e-4)
-        self.loss = tf.keras.losses.MeanAbsoluteError() # why this loss
+        self.loss = tf.keras.losses.BinaryCrossentropy()
         self.accuracy_metric = tf.keras.metrics.BinaryAccuracy(),
-        self.iou_metric = tf.keras.metrics.MeanIoU()
+        self.iou_metric = tf.keras.metrics.MeanIoU(num_classes=2)
 
         self.epochs = args.epochs
 
@@ -66,7 +66,7 @@ class UNETTrainer():
                 test_accuracy.append(accuracy.numpy())
                 test_iou.append(iou.numpy())
 
-            template = '>>> Epoch {}, Train Loss: {:.4f}, Train Metric: {:.4f}, Test Loss: {:.4f}, Test Metric: {:.4f}'.format(
+            template = '>>> Epoch {}, Train Loss: {:.4f}, Train Accuracy: {:.4f}, Train IoU: {:.4f}, Test Loss: {:.4f}, Test Accuracy: {:.4f}, Test IoU: {:.4f}'.format(
                                 self.epochs + 1, 
                                 np.mean(train_loss), np.mean(train_accuracy), np.mean(train_iou), 
                                 np.mean(test_loss), np.mean(test_accuracy), np.mean(test_iou)

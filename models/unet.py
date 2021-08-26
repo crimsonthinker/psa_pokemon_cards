@@ -2,7 +2,7 @@ import tensorflow as tf
 from tensorflow.python.keras.layers.core import Dropout
 
 from utils.constants import SMOOTH
-
+import numpy as np
 class UNET(tf.keras.Model):
     def __init__(self, input_size=(512, 512, 3)):
         super().__init__()
@@ -103,4 +103,3 @@ class UNET(tf.keras.Model):
         output = self.outputs(c9)
 
         return output
-
