@@ -74,7 +74,7 @@ class GraderImageLoader(object):
         self._images = []
         self._identifiers = []
         self.failed_images = []
-        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))
+        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))[:50]
         if self._enable_ray:
             @ray.remote
             def _extract_contour(name : str, pba : ActorHandle):
@@ -189,6 +189,9 @@ class GraderImageLoader(object):
                     top = np.concatenate((top_left, top_right), axis = 1)
                     bottom = np.concatenate((bottom_left, bottom_right), axis = 1)
                     card = np.concatenate((top, bottom), axis = 0)
+                    edg = np.expand_dims(cv2.Canny(card, 50, 150), -1)
+                    edg[100:300,100:300,:] = 0 # remove centering part
+                    card = np.concatenate([card,edg], axis = 2)
                 elif score_type == 'Edges' or score_type == 'Centering':
                     left = rotate(card[:,:200,:], 180)
                     right = card[:,-200:,:]
@@ -199,11 +202,11 @@ class GraderImageLoader(object):
                     # pad top and bottom 
                     obj = tuple([pad_card(x, (max_height, max_width)) for x in [left, right, top, bottom]])
                     card = np.concatenate(obj, axis = 1)
+                    edg = np.expand_dims(cv2.Canny(card, 50, 150), -1)
+                    card = np.concatenate([card,edg], axis = 2)
                 elif score_type == 'Surface':
                     # Do nothing
                     pass
-                edg = np.expand_dims(cv2.Canny(card,100, 200), -1)
-                card = np.concatenate([card,edg], axis = 2)
             return card
 
         # make sure that the front and the back is writable

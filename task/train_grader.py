@@ -19,8 +19,6 @@ if __name__ == '__main__':
         help="Image height for the training session")
     parser.add_argument("--img_width", type=int, default=256, nargs='?',
         help="Image width for the training session")
-    parser.add_argument("--dim", type=int, default=3, nargs='?',
-        help="Image didmension for the training session")
     parser.add_argument("--batch_size", type=int, default=32, nargs='?',
         help="Batch size for training session")
     parser.add_argument("--epochs", type=int, default=15, nargs='?',
@@ -65,7 +63,7 @@ if __name__ == '__main__':
             max_score = image_dataset.max_score,
             img_height = args.img_height,
             img_width = args.img_width,
-            dim = args.dim,
+            dim = 4 if score_type in ['Centering', 'Edges'] else 3,
             learning_rate = args.learning_rate,
             epochs = args.epochs,
             clean_log = args.clean_log,

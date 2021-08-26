@@ -2,3 +2,4 @@ data/*
 unet_labeled/*
 preprocessed_data/*
 checkpoint/*
+**/__pycache__/

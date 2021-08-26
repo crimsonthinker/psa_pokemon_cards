@@ -11,8 +11,6 @@ if __name__ == '__main__':
         help="Image height for the training session")
     parser.add_argument("--img_width", type=int, default=256, nargs='?',
         help="Image width for the training session")
-    parser.add_argument("--dim", type=int, default=3, nargs='?',
-        help="Image didmension for the training session")
     parser.add_argument("--model_score_type", type=str, default=[], nargs='+',
         help="Score type of the model. Leave blank if run all.")
     parser.add_argument("--enable_ray", action='store_true', default = False,
@@ -46,7 +44,6 @@ if __name__ == '__main__':
         metadata[score_type] = {
             'img_height' : args.img_height,
             'img_width' : args.img_width,
-            'dim' : 3,
             'failed_images_identifiers' : image_dataset.failed_images_identifiers
         }
 
