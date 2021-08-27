@@ -85,7 +85,7 @@ class VGG16PreProcessor(object):
         pred_mask[pred_mask>=0.5] = 1.0
         pred_mask[pred_mask<0.5] = 0.0
 
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(17,17))
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(16,27))
         pred_mask = cv2.morphologyEx(pred_mask, cv2.MORPH_OPEN, kernel)
                                                  
         contours, hierarchy = cv2.findContours(image=pred_mask.astype(np.uint8), mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_SIMPLE)
@@ -101,11 +101,11 @@ class VGG16PreProcessor(object):
         cropped_img = cv2.warpPerspective(image[self.shape[0]//4:,:], M, (PSA_WIDTH, PSA_HEIGHT))
         
         # Visualize results
-        cv2.drawContours(inputs_img[0][:506, :405],[np.uint0(box / 4)],0,(0,191,255),2)
-        cv2.imshow("img", inputs_img[0][:506, :405])
-        cv2.imshow("prd", pred_mask)
-        cv2.imshow("crop", cv2.resize(cropped_img, (cropped_img.shape[1] // 2, cropped_img.shape[0] // 2), interpolation = cv2.INTER_AREA))
-        cv2.waitKey(0)
+        # cv2.drawContours(inputs_img[0][:506, :405],[np.uint0(box / 4)],0,(0,191,255),2)
+        # cv2.imshow("img", inputs_img[0][:506, :405])
+        # cv2.imshow("prd", pred_mask)
+        # cv2.imshow("crop", cv2.resize(cropped_img, (cropped_img.shape[1] // 2, cropped_img.shape[0] // 2), interpolation = cv2.INTER_AREA))
+        # cv2.waitKey(0)
         return cropped_img
 
     def rearrange_box(self, box):

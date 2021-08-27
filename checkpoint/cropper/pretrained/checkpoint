@@ -1,2 +1,2 @@
-model_checkpoint_path: "2021-08-27 17:12:42"
-all_model_checkpoint_paths: "2021-08-27 17:12:42"
+model_checkpoint_path: "checkpoint"
+all_model_checkpoint_paths: "checkpoint"

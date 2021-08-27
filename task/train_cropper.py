@@ -21,7 +21,7 @@ class UNETTrainer():
         )
         self.model.build(input_shape=(1, args.img_height, args.img_width, args.dim))
         
-        self.optimizer = tf.keras.optimizers.Adam(lr=1e-5)
+        self.optimizer = tf.keras.optimizers.Adam(lr=5e-6)
         self.loss = tf.keras.losses.BinaryCrossentropy()
         self.accuracy_metric = tf.keras.metrics.BinaryAccuracy()
         self.iou_metric = tf.keras.metrics.MeanIoU(num_classes=2)
