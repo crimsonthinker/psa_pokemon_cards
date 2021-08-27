@@ -5,7 +5,7 @@ import os
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_directory", type=str, default='data', nargs='?',
+    parser.add_argument("--train_directory", type=str, default='data/images', nargs='?',
         help="Training directory")
     parser.add_argument("--img_height", type=int, default=256, nargs='?',
         help="Image height for the training session")

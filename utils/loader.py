@@ -16,7 +16,7 @@ import random
 
 from utils.ray_progress_bar import ProgressBar
 from utils.utilities import *
-from utils.preprocessor import *
+from utils.preprocessor import VGG16PreProcessor
 
 class GraderImageLoader(object):
     """An image preprocessor class for preprocessing image dataset
@@ -63,6 +63,8 @@ class GraderImageLoader(object):
 
         self.img_width = kwargs.get('img_width')
         self.img_height = kwargs.get('img_height')
+
+        self.preprocessor = VGG16PreProcessor()
 
     def _split_and_preprocess(self, score_type):
         """Split dataset into train and test dataset
@@ -163,12 +165,12 @@ class GraderImageLoader(object):
         def extract_card(image : np.ndarray, score_type : str):
             # TODO: Use U-Net to extract card
             # card = UNetSomething(...)
-            card = None
+            card = self.preprocessor.crop_image(image)
             if card is None:
                 # front card not exist
                 # border got messed up
-                card_pop = extract_contour_for_pop_image(image)
-                card_dim = extract_contour_for_dim_image(image)
+                card_pop = self.preprocessor.extract_contour_for_pop_image(image)
+                card_dim = self.preprocessor.extract_contour_for_dim_image(image)
                 if card_pop is not None or card_dim is not None:
                     if card_dim is None:
                         card = card_pop

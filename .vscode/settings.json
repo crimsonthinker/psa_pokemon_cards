@@ -1,4 +1,0 @@
-{
-    "python.pythonPath": "~/Toolkits/anaconda3/envs/tensorflow/bin/",
-    "jupyter.notebookFileRoot": "${workspaceFolder}"
-}

@@ -8,7 +8,7 @@
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
-            "program": " -m task.extract_cropper_data",
+            "module": "task.extract_grade_data",
             "console": "integratedTerminal"
         }
     ]
