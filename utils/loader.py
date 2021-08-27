@@ -205,6 +205,7 @@ class GraderImageLoader(object):
                     edg = np.expand_dims(cv2.Canny(card, 50, 150), -1)
                     card = np.concatenate([card,edg], axis = 2)
                 elif score_type == 'Surface':
+                    
                     # Do nothing
                     pass
             return card
