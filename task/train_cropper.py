@@ -21,7 +21,7 @@ class UNETTrainer():
         )
         self.model.build(input_shape=(1, args.img_height, args.img_width, args.dim))
         
-        self.optimizer = tf.keras.optimizers.Adam(lr=5e-5)
+        self.optimizer = tf.keras.optimizers.Adam(lr=1e-5)
         self.loss = tf.keras.losses.BinaryCrossentropy()
         self.accuracy_metric = tf.keras.metrics.BinaryAccuracy()
         self.iou_metric = tf.keras.metrics.MeanIoU(num_classes=2)
@@ -31,7 +31,7 @@ class UNETTrainer():
         self.current_time = datetime.datetime.now().strftime(SQL_TIMESTAMP)
         self.saved_model_dir = os.path.join('checkpoint', 'cropper', self.current_time)
 
-        self.pretrained_model_path = os.path.join('checkpoint/cropper/pretrained', '2021-08-27 14:47:32')
+        self.pretrained_model_path = os.path.join('checkpoint/cropper/pretrained/checkpoint')
 
         self.val_ratio = args.val_ratio
 
@@ -77,7 +77,7 @@ class UNETTrainer():
                     'test_iou' : float(np.mean(test_iou))
                 })
 
-            self.save_weights(epoch, datetime.datetime.now().strftime(SQL_TIMESTAMP))
+            self.save_weights(epoch, "checkpoint")
             template = '>>> Epoch {}\n Train Loss: {:.4f}, Train Accuracy: {:.4f}, Train IoU: {:.4f}\n Test Loss: {:.4f}, Test Accuracy: {:.4f}, Test IoU: {:.4f}'.format(
                                 epoch + 1, 
                                 np.mean(train_loss), np.mean(train_accuracy), np.mean(train_iou), 

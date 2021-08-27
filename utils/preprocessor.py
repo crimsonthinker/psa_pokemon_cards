@@ -74,19 +74,19 @@ class VGG16PreProcessor(object):
         self.shape = (2698, 1620, 3)
         self.feed_size = (405, 506)
         self.model = UNET((512, 512, 3))
-        self.pretrained_model_path = os.path.join('checkpoint/cropper/pretrained', '2021-08-27 14:47:32')
+        self.pretrained_model_path = os.path.join('checkpoint/cropper/pretrained/checkpoint')
         self.model.load_weights(self.pretrained_model_path)
 
     def crop_image(self, image : np.ndarray):
-        mask = np.zeros([self.shape[0], self.shape[1]], dtype=np.float32)
         inputs_img = np.zeros([1, 512, 512, 3], np.float32)
         inputs_img[0][:506, :405] = cv2.resize(image[self.shape[0]//4:,:], self.feed_size, interpolation = cv2.INTER_AREA).astype(np.float32) / 255.0
         preds = self.model(convert_to_tensor(inputs_img), training=False).numpy()
         pred_mask = preds[0][:506, :405]
-        mask[self.shape[0]//4:,:] = cv2.resize(pred_mask, (self.feed_size[0] * 4, self.feed_size[1] * 4),\
-                                                 interpolation = cv2.INTER_AREA)
         pred_mask[pred_mask>=0.5] = 1.0
         pred_mask[pred_mask<0.5] = 0.0
+
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(17,17))
+        pred_mask = cv2.morphologyEx(pred_mask, cv2.MORPH_OPEN, kernel)
                                                  
         contours, hierarchy = cv2.findContours(image=pred_mask.astype(np.uint8), mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_SIMPLE)
         c = np.concatenate(contours, axis=0)
@@ -101,11 +101,11 @@ class VGG16PreProcessor(object):
         cropped_img = cv2.warpPerspective(image[self.shape[0]//4:,:], M, (PSA_WIDTH, PSA_HEIGHT))
         
         # Visualize results
-        # cv2.drawContours(inputs_img[0][:506, :405],[np.uint0(box)],0,(0,191,255),2)
-        # cv2.imshow("img", inputs_img[0][:506, :405])
-        # cv2.imshow("prd", pred_mask)
-        # cv2.imshow("crop", cropped_img)
-        # cv2.waitKey(0)
+        cv2.drawContours(inputs_img[0][:506, :405],[np.uint0(box / 4)],0,(0,191,255),2)
+        cv2.imshow("img", inputs_img[0][:506, :405])
+        cv2.imshow("prd", pred_mask)
+        cv2.imshow("crop", cv2.resize(cropped_img, (cropped_img.shape[1] // 2, cropped_img.shape[0] // 2), interpolation = cv2.INTER_AREA))
+        cv2.waitKey(0)
         return cropped_img
 
     def rearrange_box(self, box):

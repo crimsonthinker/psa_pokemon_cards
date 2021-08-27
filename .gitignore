@@ -1,4 +1,7 @@
 data/*
 unet_labeled/*
 preprocessed_data/*
-checkpoint/*
+checkpoint/cropper/20*
+checkpoint/grader/20*
+!checkpoint/cropper/pretrained/*
+!checkpoint/grader/pretrained/*

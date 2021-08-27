@@ -262,7 +262,8 @@ class GraderImageLoader(object):
                 num_repeat[identifier] += 1
             else:
                 num_repeat[identifier] = 1
-            np.save(os.path.join(root_train_path,f'{identifier}_{repetition}.npy'), train_image)
+            # np.save(os.path.join(root_train_path,f'{identifier}_{repetition}.npy'), train_image)
+            cv2.imwrite(os.path.join(root_train_path,f'{identifier}_{repetition}.jpg'), train_image)
                 
     def load(self, score_type):
         """Perform loading the images and split into datasets
