@@ -22,7 +22,7 @@ class UNETTrainer():
         self.model.build(input_shape=(1, args.img_height, args.img_width, args.dim))
         
         self.optimizer = tf.keras.optimizers.Adam(lr=5e-6)
-        self.loss = tf.keras.losses.BinaryCrossentropy()
+        self.loss = tf.keras.losses.BinaryCrossentropy(from_logits=True)
         self.accuracy_metric = tf.keras.metrics.BinaryAccuracy()
         self.iou_metric = tf.keras.metrics.MeanIoU(num_classes=2)
 
@@ -107,7 +107,7 @@ class UNETTrainer():
     def predict(self, inputs, ground_truths, is_train=True):
         preds = self.model(inputs, training=is_train)
 
-        loss = self.loss(preds, ground_truths)
+        loss = self.loss(preds, ground_truths, sample_weight=self.dataloader.mask)
         accuracy = self.accuracy_metric(preds, ground_truths)
         iou = self.iou_metric(preds, ground_truths)
         return loss, accuracy, iou

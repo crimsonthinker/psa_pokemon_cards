@@ -376,11 +376,21 @@ class UNETDataLoader(object):
         self.test_pivot = 0
         self.num_batch4test = -1
 
+        self.mask_path = os.path.join("data", "mask.png")
+        self.mask = None
+
         
     def load(self):
         """Load images paths
         """
         self.image_paths = [x[0] for x in os.walk(self.data_path)][1:]
+        mask_img = cv2.imread(self.mask_path, cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0 * 10
+        mask_img[mask_img < 1] = 1.0
+        mask_img = np.repeat(mask_img[np.newaxis, :, :], self.batch_size, axis=0)
+        self.mask = np.zeros([self.batch_size, 512, 512, 1], np.float32)
+        self.mask[:, :506, :405] = np.expand_dims(mask_img, -1)
+        self.mask = tf.convert_to_tensor(self.mask)
+        pass
 
     def next_train_batch(self):
         inputs_img = np.zeros([self.batch_size, 512, 512, 3], np.float32)
