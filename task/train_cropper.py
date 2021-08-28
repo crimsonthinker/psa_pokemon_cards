@@ -1,4 +1,4 @@
-from utils.utilities import ensure_dir
+from utils.utilities import get_logger
 from utils.constants import SQL_TIMESTAMP
 import numpy as np
 import os
@@ -8,10 +8,17 @@ import argparse
 import json
 
 from models.unet import UNET
-from utils.loader import UNETDataLoader
+from task.loaders import UNETDataLoader
 
 class UNETTrainer():
+    """Trainer classs for UNET
+    """
     def __init__(self, args):
+        """init function
+
+        Args:
+            args: argparse aurgument 
+        """
         self.model = UNET((args.img_height, args.img_width, args.dim))
         self.dataloader = UNETDataLoader(
             batch_size = args.batch_size,
@@ -21,22 +28,29 @@ class UNETTrainer():
         )
         self.model.build(input_shape=(1, args.img_height, args.img_width, args.dim))
         
-        self.optimizer = tf.keras.optimizers.Adam(lr=5e-4)
-        self.loss = tf.keras.losses.MeanAbsoluteError() # why this loss
-        self.accuracy_metric = tf.keras.metrics.BinaryAccuracy(),
-        self.iou_metric = tf.keras.metrics.MeanIoU()
+        self.optimizer = tf.keras.optimizers.Adam(lr=5e-6)
+        self.loss = tf.keras.losses.BinaryCrossentropy()
+        self.accuracy_metric = tf.keras.metrics.BinaryAccuracy()
+        self.iou_metric = tf.keras.metrics.MeanIoU(num_classes=2)
 
         self.epochs = args.epochs
 
         self.current_time = datetime.datetime.now().strftime(SQL_TIMESTAMP)
         self.saved_model_dir = os.path.join('checkpoint', 'cropper', self.current_time)
 
-        self.pretrained_model_path = os.path.join('checkpoint', 'cropper', 'pretrained')
+        self.pretrained_model_path = os.path.join('checkpoint/cropper/pretrained/checkpoint')
 
         self.val_ratio = args.val_ratio
 
-    def train(self, from_pretrained = True):
-        self.history = {}
+        self._logger = get_logger("UNETTrainer")
+
+    def train(self, from_pretrained : bool = True):
+        """Training function
+
+        Args:
+            from_pretrained (bool, optional): begin training function from pretrained. Defaults to True.
+        """
+        self.history = []
         self.dataloader.load()
         self.dataloader.split(ratio = 1 - self.val_ratio)
         self.dataloader.shuffle()
@@ -66,15 +80,9 @@ class UNETTrainer():
                 test_accuracy.append(accuracy.numpy())
                 test_iou.append(iou.numpy())
 
-            template = '>>> Epoch {}, Train Loss: {:.4f}, Train Metric: {:.4f}, Test Loss: {:.4f}, Test Metric: {:.4f}'.format(
-                                self.epochs + 1, 
-                                np.mean(train_loss), np.mean(train_accuracy), np.mean(train_iou), 
-                                np.mean(test_loss), np.mean(test_accuracy), np.mean(test_iou)
-            )
-            print(template)
-
             self.history.append(
                 {
+                    'epoch' : epoch,
                     'train_loss' : float(np.mean(train_loss)),
                     'test_loss' : float(np.mean(test_loss)),
                     'train_accuracy' : float(np.mean(train_accuracy)),
@@ -83,7 +91,13 @@ class UNETTrainer():
                     'test_iou' : float(np.mean(test_iou))
                 })
 
-            self.save_weights()
+            self.save_weights(epoch, "checkpoint")
+            template = '>>> Epoch {}\n Train Loss: {:.4f}, Train Accuracy: {:.4f}, Train IoU: {:.4f}\n Test Loss: {:.4f}, Test Accuracy: {:.4f}, Test IoU: {:.4f}'.format(
+                                epoch + 1, 
+                                np.mean(train_loss), np.mean(train_accuracy), np.mean(train_iou), 
+                                np.mean(test_loss), np.mean(test_accuracy), np.mean(test_iou)
+            )
+            self._logger.info(template)
             self.dataloader.shuffle()
             self.dataloader.reset()
 
@@ -112,8 +126,12 @@ class UNETTrainer():
         iou = self.iou_metric(preds, ground_truths)
         return loss, accuracy, iou
 
-    def save_weights(self):
-        self.model.save_weights(self.saved_model_dir, save_format="tf")
+    def save_weights(self, epoch, name):
+        dir_path = os.path.join(self.saved_model_dir, str(epoch + 1))
+        if not os.path.isdir(self.saved_model_dir):
+            os.mkdir(self.saved_model_dir)
+        os.mkdir(dir_path)
+        self.model.save_weights(dir_path + '/{}'.format(name), save_format="tf")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -127,7 +145,7 @@ if __name__ == '__main__':
         help="Image width for the training session")
     parser.add_argument("--dim", type=int, default=3, nargs='?',
         help="Image didmension for the training session")
-    parser.add_argument("--epochs", type=int, default=15, nargs='?',
+    parser.add_argument("--epochs", type=int, default=40, nargs='?',
         help="Number of epochs for training session")
     parser.add_argument("--batch_size", type=int, default=32, nargs='?',
         help="Batch size for training session")
@@ -138,4 +156,4 @@ if __name__ == '__main__':
     # train u net for card segmentation
     trainer = UNETTrainer(args)
     trainer.model.summary()
-    trainer.train(from_pretrained=False)
+    trainer.train(from_pretrained=True)

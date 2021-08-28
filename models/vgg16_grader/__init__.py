@@ -1,0 +1,4 @@
+from models.vgg16_grader.centering_grader import VGG16GraderCentering
+from models.vgg16_grader.corners_grader import VGG16GraderCorners
+from models.vgg16_grader.edges_grader import VGG16GraderEdges
+from models.vgg16_grader.surface_grader import VGG16GraderSurface

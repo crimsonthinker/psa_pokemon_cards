@@ -1,5 +1,5 @@
 import argparse
-from utils.preprocessor import UNETPreProcessor
+from task.loaders import UNETPreProcessor
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
