@@ -1,11 +1,13 @@
 import argparse
-from utils.loader import GraderImageLoader
 import json
 import os
 
+from task.loaders import GraderImageLoader
+from utils.utilities import get_logger
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_directory", type=str, default='data', nargs='?',
+    parser.add_argument("--train_directory", type=str, default='data/images', nargs='?',
         help="Training directory")
     parser.add_argument("--img_height", type=int, default=256, nargs='?',
         help="Image height for the training session")
@@ -35,9 +37,11 @@ if __name__ == '__main__':
     else:
         score_types = args.model_score_type
 
+    logger = get_logger("Grade data extractor")
+
     
     for score_type in score_types:
-        print(f"Generating data of score {score_type}")
+        logger.info(f"Generating data of score {score_type}")
         # load the image from train directory
         image_dataset.preprocess(score_type)
 

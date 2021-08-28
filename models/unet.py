@@ -1,11 +1,14 @@
 import tensorflow as tf
 from tensorflow.python.keras.layers.core import Dropout
 
-from utils.constants import SMOOTH
-
+import numpy as np
 class UNET(tf.keras.Model):
-    def __init__(self, input_size=(512, 512, 3)):
-        super().__init__()
+    """A subclass model of UNET
+    """
+    def __init__(self):
+        """init function
+        """
+        super(UNET, self).__init__()
 
         self.norm = tf.keras.layers.BatchNormalization()
         self.dropout = Dropout(0.5)
@@ -103,4 +106,3 @@ class UNET(tf.keras.Model):
         output = self.outputs(c9)
 
         return output
-

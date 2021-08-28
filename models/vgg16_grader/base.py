@@ -11,6 +11,7 @@ import pandas as pd
 from typing import Union
 import math
 import json
+from tqdm import tqdm
 from abc import abstractclassmethod
 
 from tensorflow.keras.applications import VGG16
@@ -18,7 +19,7 @@ from tensorflow.python.ops.gen_dataset_ops import PrefetchDataset
 
 from utils.utilities import *
 from utils.constants import *
-from utils.loader import *
+from task.loaders import GraderImageLoader
 
 class VGG16GraderBase(object):
     def __init__(self, 
@@ -249,10 +250,10 @@ class VGG16GraderBase(object):
                         ims = np.stack(images)
                         predictions = self.predict(ims)
                         image_predicted += len(images)
-                        print(f"Predicted {image_predicted} images")
+                        self._logger.info(f"Predicted {image_predicted} images")
                         for t, filename in enumerate(predicted_filenames):
                             result.loc[os.path.splitext(filename)[0]] = predictions[t] 
-                        print(result.value_counts())
+                        self._logger.info(result.value_counts())
                         predicted_filenames = []
                         images = []
                 except:
@@ -263,7 +264,7 @@ class VGG16GraderBase(object):
                 ims = np.stack(images)
                 predictions = self.predict(ims)
                 image_predicted += len(images)
-                print(f"Predicted {image_predicted} images")
+                self._logger.info(f"Predicted {image_predicted} images")
                 for t, filename in enumerate(predicted_filenames):
                     result.loc[os.path.splitext(filename)[0]] = predictions[t] 
 

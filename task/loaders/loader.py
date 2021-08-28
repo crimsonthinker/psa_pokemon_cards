@@ -16,11 +16,11 @@ import random
 
 from utils.ray_progress_bar import ProgressBar
 from utils.utilities import *
-from utils.preprocessor import *
+from task.loaders.preprocessor import VGG16PreProcessor
 
 class GraderImageLoader(object):
     """An image preprocessor class for preprocessing image dataset
-    and split them into training and testing set for model training
+    and split them into training and testing set for grader model
 
     Args:
         object: python's object type
@@ -30,47 +30,58 @@ class GraderImageLoader(object):
         train_directory [string] : path to the original training folder
         grade_path [string] : path to the grade file. Defaults as data/grades.csv
         skip_preprocessing [bool] : Indicating whether to skip the preprocessing part 
-        batch_size [int] : batch size for the dataset. Defaults as 32.
-        oversampling_ratio_over_max [float] : A sampling ratio between the number of images in a label and the maximum number of images in one label.
+        batch_size [int] : batch size for the dataset. Defaults as 8.
         val_ratio [float] : ratio for validation split
-        img_width [float] : image width for the model's input
-        img_height [float] : image height for the model's input
+        enable_ray [bool] : Flag enabling multiprocessing approach for preprocessing module using Ray
         """
         self._train_directory = kwargs.get('train_directory', None)
+
         self._grade_path = kwargs.get('grade_path', os.path.join('data', 'grades.csv'))
+        self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
+        self._grades.index = [str(x) for x in self._grades.index]
+
         self._preprocessed_dataset_path = 'preprocessed_data'
         ensure_dir(self._preprocessed_dataset_path)
+
+        # Fixed ratio obtained from Pokemon PSA card
+        self.img_width = kwargs.get('img_width', 128)
+        self.img_height = kwargs.get('img_height', 215)
+
+        self.max_score = 10
+
         self._logger = get_logger("GraderImageLoader")
 
-        self._batch_size = kwargs.get('batch_size', 32)
+        self._batch_size = kwargs.get('batch_size', 8)
         self._val_ratio = kwargs.get('val_ratio', 0.3)
         self._enable_ray = kwargs.get('enable_ray', False)
         self._images = None
         self._images_file_name = None
-        self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
-        self._grades.index = [str(x) for x in self._grades.index]
-        self._paths = []
-        self._identifiers = []
-        self._identifier_scores = []
-        self._train_paths = []
-        self._train_identifiers = []
-        self._train_identifier_scores = []
-        self._val_paths = []
-        self._val_identifiers = []
-        self._val_identifier_scores = []
-        self.failed_images_identifiers = []
-        self.max_score = 10
 
-        self.img_width = kwargs.get('img_width')
-        self.img_height = kwargs.get('img_height')
+        self._paths = [] # list of file paths
+        self._identifiers = [] # list of identifiers (id)
+        self._identifier_scores = [] # list of identifier's score (of one aspect)
+        self._train_paths = [] # list of train file paths
+        self._train_identifiers = [] # list of train identifiers
+        self._train_identifier_scores = [] # list of train identifier's score
+        self._val_paths = [] # list of validation file path
+        self._val_identifiers = [] # list of validation identifiers
+        self._val_identifier_scores = [] # list of validation identifier's score
+        self.failed_images_identifiers = [] # list of unsucessfully preprocessed images
 
-    def _split_and_preprocess(self, score_type):
+        # preprocessor for Grader model
+        self.preprocessor = VGG16PreProcessor()
+
+    def _preprocess(self, score_type : str):
         """Split dataset into train and test dataset
+
+        Args:
+            score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
         """
         # ensure directory
         root_path = os.path.join(self._preprocessed_dataset_path, score_type)
         ensure_dir(root_path)
-        #read images
+
+        #read images and extract card contents
         self._images = []
         self._identifiers = []
         self.failed_images = []
@@ -85,7 +96,7 @@ class GraderImageLoader(object):
                     front_image = os.path.join(name, "front.jpg")
                     back_image = np.array(imread(back_image))
                     front_image = np.array(imread(front_image))
-                    preprocessed_image = self._preprocess(back_image, front_image, score_type)
+                    preprocessed_image = self.__preprocess(back_image, front_image, score_type)
                     # append the preprocessed image
                     if preprocessed_image is not None:
                         resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
@@ -130,17 +141,29 @@ class GraderImageLoader(object):
         self._images = [x[1] for x in results if x[1] is not None]
         self.failed_images_identifiers = [x[0] for x in results if x[1] is None]
 
-    def _preprocess(self, back_image : np.ndarray, front_image : np.ndarray, score_type : str):
-        """Preprocess image by cropping content out of contour and merge image
+    def __preprocess(self, back_image : np.ndarray, front_image : np.ndarray, score_type : str) -> np.ndarray:
+        """Preprocess image by cropping content out of contour and merge image.
+        For each aspect, different preprocessing approach is used on the image
+
 
         Args:
-            back_image (np.ndarray): [description]
-            front_image (np.ndarray): [description]
+            back_image (np.ndarray): back image of the card
+            front_image (np.ndarray): front image of the card
+            score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
         Return:
             (np.ndarray) : A preprocessed image
         """
 
-        def pad_card(image : np.ndarray, desire_shape : tuple):
+        def pad_card(image : np.ndarray, desire_shape : tuple) -> np.ndarray:
+            """Pad card image to appropriate size
+
+            Args:
+                image (np.ndarray): card image
+                desire_shape (tuple): desired shape. Format as (height, width)
+
+            Returns:
+                np.ndarray: padded card image
+            """
             height, width, _ = image.shape
             desire_height = desire_shape[0]
             desire_width = desire_shape[1]
@@ -160,15 +183,24 @@ class GraderImageLoader(object):
                 value = 0
             )
 
-        def extract_card(image : np.ndarray, score_type : str):
-            # TODO: Use U-Net to extract card
-            # card = UNetSomething(...)
-            card = None
+        def extract_card(image : np.ndarray, score_type : str) -> np.ndarray:
+            """Extract card content using VGG16Preprocessor and preprocess it to appropriate format.
+
+            Args:
+                image (np.ndarray): card image
+                score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
+
+            Returns:
+                np.ndarray: cropped card image
+            """
+
+            # preprocess card
+            card = self.preprocessor.crop_image(image)
             if card is None:
                 # front card not exist
                 # border got messed up
-                card_pop = extract_contour_for_pop_image(image)
-                card_dim = extract_contour_for_dim_image(image)
+                card_pop = self.preprocessor.crop_card_for_light_image(image)
+                card_dim = self.preprocessor.crop_card_for_dark_image(image)
                 if card_pop is not None or card_dim is not None:
                     if card_dim is None:
                         card = card_pop
@@ -180,6 +212,7 @@ class GraderImageLoader(object):
                         else:
                             card = card_pop
 
+            # format card
             if card is not None:
                 if score_type == 'Corners':
                     top_left = card[:200,:200, :]
@@ -210,10 +243,11 @@ class GraderImageLoader(object):
                     pass
             return card
 
-        # make sure that the front and the back is writable
         front_card = extract_card(front_image, score_type)
         back_card = extract_card(back_image, score_type)
 
+        # If the aspect is 'Centering', only use the back image.
+        # Other wise merge the card
         if score_type != 'Centering':
             if front_card is not None and back_card is not None:
                 # merge two image
@@ -231,10 +265,19 @@ class GraderImageLoader(object):
         return None
 
     def _oversampling(self, score_type, max_examples_per_score = 500):
+        """Perform oversampling to prevent class imbalance
+
+        Args:
+            score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
+            max_examples_per_score (int, optional): Maximum examples per class. Defaults to 500.
+        """
+
         image_map = {self._identifiers[x] : self._images[x] for x in range(len(self._identifiers))}
         scores_table = self._grades[score_type]
         counter = collections.defaultdict(list)
         highest_num_examples = 0
+
+        # get the highest number of examples per class
         for x in self._identifiers:
             score = scores_table.loc[x]
             counter[score].append(x)
@@ -242,6 +285,8 @@ class GraderImageLoader(object):
                 highest_num_examples = len(counter[score])
         if max_examples_per_score < highest_num_examples:
             highest_num_examples = max_examples_per_score
+
+        # Perform oversampling with the highest_num_examples
         for score in counter:
             if len(counter[score]) < highest_num_examples:
                 # add images in self._images and self._identifiers
@@ -251,7 +296,10 @@ class GraderImageLoader(object):
                     self._identifiers.append(add_id)
 
     def _save(self, score_type):
-        """Save data to preprocessed folder
+        """data to preprocessed folder
+
+        Args:
+            score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
         """
         root_train_path = os.path.join(self._preprocessed_dataset_path, score_type)
         ensure_dir(root_train_path)
@@ -266,27 +314,31 @@ class GraderImageLoader(object):
                 num_repeat[identifier] = 1
             np.save(os.path.join(root_train_path,f'{identifier}_{repetition}.npy'), train_image)
                 
-    def load(self, score_type):
-        """Perform loading the images and split into datasets
+    def load(self, score_type : str):
+        """Load data from preprocessed_data
+
+        Args:
+            score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
         """
         autotune = tf.data.AUTOTUNE
 
         self.train_identifier_list = []
-        # save current score type
         self.score_type = score_type
 
+        # prepare path and scores
         root_path = os.path.join(self._preprocessed_dataset_path, score_type)
         self._paths = sorted([name for name in glob.glob(os.path.join(root_path, "*"))])
         self._identifiers = [Path(name).stem.split("_")[0] for name in self._paths]
         self._identifier_scores = [self._grades.loc[x][score_type] for x in self._identifiers]
 
+        # get shuffle indices and shuffle the lists
         idx_list = list(range(len(self._paths)))
         random.shuffle(idx_list)
-
         self._paths = [self._paths[i] for i in idx_list]
         self._identifiers = [self._identifiers[i] for i in idx_list]
         self._identifier_scores = [self._identifier_scores[i] for i in idx_list]
 
+        # Split to train and validaation
         self._train_paths = self._paths[:int(len(self._identifiers) * (1 - self._val_ratio))]
         self._train_identifiers = self._identifiers[:int(len(self._identifiers) * (1 - self._val_ratio))]
         self._train_identifier_scores = self._identifier_scores[:int(len(self._identifiers) * (1 - self._val_ratio))]
@@ -294,6 +346,7 @@ class GraderImageLoader(object):
         self._val_identifiers = self._identifiers[int(len(self._identifiers) * (1 - self._val_ratio)):]
         self._val_identifier_scores = self._identifier_scores[int(len(self._identifiers) * (1 - self._val_ratio)):]
 
+        # Read dataset
         def _read_dataset(name_list : list, score_list : list):
             # scaling score from 0-10 to 0-1
             images = np.array([np.load(filename) for filename in name_list])
@@ -304,13 +357,10 @@ class GraderImageLoader(object):
             ))
 
             return data
-
-
         self._train_img_ds = _read_dataset(
             self._train_paths,
             self._train_identifier_scores
         ).batch(self._batch_size).cache().prefetch(buffer_size = autotune)
-
         self._validation_img_ds = _read_dataset(
             self._val_paths,
             self._val_identifier_scores
@@ -333,21 +383,37 @@ class GraderImageLoader(object):
         return self._validation_img_ds
 
     def get_score_type(self):
+        """Get score type
+
+        Returns:
+            str: name of score aspect
+        """
         return self.score_type
     
     def get_val_identifiers(self):
+        """Get list of validation identifiers
+
+        Returns:
+            list[str]: list of validation identifiers
+        """
         return self._val_identifiers
         
     def get_val_scores(self):
+        """Get list of validation scores
+
+        Returns:
+            list[str]: list of validation scores
+        """
         return self._val_identifier_scores
-    def preprocess(self, score_type):
+
+    def preprocess(self, score_type : str):
         """Preprocess data
 
         Args:
-            score_type ([type]): [description]
+            score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
         """
         self._logger.info(f"Perform splitting")
-        self._split_and_preprocess(score_type)
+        self._preprocess(score_type)
 
         self._logger.info(f"Oversampling data")
         self._oversampling(score_type)
@@ -357,16 +423,30 @@ class GraderImageLoader(object):
 
 
 class UNETDataLoader(object):
+    """A Data loader class for U-Net
+
+    Args:
+        object: python's object type
+    """
     def __init__(self,
-        batch_size,
-        original_height,
-        original_width,
-        dim,
+        batch_size : int,
+        original_height : int,
+        original_width : int,
+        dim : int,
         ):
+        """Init function
+
+        Args:
+            batch_size (int): batch_size for data loader
+            original_height (int): original height
+            original_width (int): original width
+            dim (int): image dimension
+        """
         self.batch_size = batch_size
         self.shape = (original_height, original_width, dim)
-        self.dim = (405, 506)
-        self.data_path = os.path.join("preprocessed_data", "UNET", "train")
+        self.dim = (405, 506) # preprocessed dimension
+        self.data_path = os.path.join("preprocessed_data", "UNET")
+
         self.image_paths = []
 
         self.train_paths = []
@@ -384,6 +464,11 @@ class UNETDataLoader(object):
         self.image_paths = [x[0] for x in os.walk(self.data_path)][1:]
 
     def next_train_batch(self):
+        """Get next train batch
+
+        Returns:
+            (tf.Tensor, tf.Tensor): Tensors for inputs and outputs of U-Net
+        """
         inputs_img = np.zeros([self.batch_size, 512, 512, 3], np.float32)
         inputs_gtr = np.zeros([self.batch_size, 512, 512, 1], np.float32)
 
@@ -395,6 +480,11 @@ class UNETDataLoader(object):
         return tf.convert_to_tensor(inputs_img), tf.convert_to_tensor(inputs_gtr)
 
     def next_test_batch(self):
+        """Get next test batch
+
+        Returns:
+            (tf.Tensor, tf.Tensor): Tensors for inputs and outputs of U-Net
+        """
         inputs_img = np.zeros([self.batch_size, 512, 512, 3], np.float32)
         inputs_gtr = np.zeros([self.batch_size, 512, 512, 1], np.float32)
 
@@ -405,7 +495,15 @@ class UNETDataLoader(object):
             self.test_pivot += 1
         return tf.convert_to_tensor(inputs_img), tf.convert_to_tensor(inputs_gtr)
     
-    def is_enough_data(self, is_train = True):
+    def is_enough_data(self, is_train = True) -> bool:
+        """Check if there's data for the module
+
+        Args:
+            is_train (bool, optional): check from train data. Defaults to True.
+
+        Returns:
+            bool
+        """
         num_of_remained_data = len(self.train_paths) - (self.train_pivot) if is_train else len(self.test_paths) - (self.test_pivot)
         return True if num_of_remained_data >= self.batch_size else False
     
@@ -430,10 +528,21 @@ class UNETDataLoader(object):
         random.shuffle(self.test_paths)
 
     def reset(self):
+        """Reset pivot
+        """
         self.train_pivot = 0
         self.test_pivot = 0
 
     def dataparser(self, img_path):
+        """parse image file to correct format
+
+        Args:
+            img_path (str): image
+
+        Returns:
+            ([np.ndarray,np,ndarray], [np.ndarray,np,ndarray])]:
+                ([Front color input, back color input], [front grayscale input, back grayscale input])
+        """
         input_f = cv2.imread(os.path.join(img_path, "front.jpg"), cv2.IMREAD_COLOR).astype(np.float32) / 255.0
         input_b = cv2.imread(os.path.join(img_path, "back.jpg"), cv2.IMREAD_COLOR).astype(np.float32) / 255.0
         gtr_f = cv2.imread(os.path.join(img_path, "gtr_front.jpg"), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0

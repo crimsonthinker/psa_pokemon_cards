@@ -1,11 +1,13 @@
 import argparse
+from utils.utilities import get_logger
 import pandas as pd
 import os
-from utils.loader import GraderImageLoader
-from models.vgg16_grader_centering import VGG16GraderCentering
-from models.vgg16_grader_corners import VGG16GraderCorners
-from models.vgg16_grader_edges import VGG16GraderEdges
-from models.vgg16_grader_surface import VGG16GraderSurface
+from task.loaders import GraderImageLoader
+
+from models.vgg16_grader import VGG16GraderCentering
+from models.vgg16_grader import VGG16GraderCorners
+from models.vgg16_grader import VGG16GraderEdges
+from models.vgg16_grader import VGG16GraderSurface
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -13,13 +15,11 @@ if __name__ == '__main__':
         help="Clean log folder")
     parser.add_argument("--clean_checkpoints", action='store_true', default = False,
         help="Clean checkpoints folder of the model")
-    parser.add_argument("--preprocessed", type=int, default=512, nargs='?',
-        help="Image height for the training session")
     parser.add_argument("--img_height", type=int, default=256, nargs='?',
         help="Image height for the training session")
     parser.add_argument("--img_width", type=int, default=256, nargs='?',
         help="Image width for the training session")
-    parser.add_argument("--batch_size", type=int, default=32, nargs='?',
+    parser.add_argument("--batch_size", type=int, default=8, nargs='?',
         help="Batch size for training session")
     parser.add_argument("--epochs", type=int, default=15, nargs='?',
         help="Number of epochs for training session")
@@ -52,6 +52,8 @@ if __name__ == '__main__':
     else:
         score_types = args.model_score_type
 
+    logger = get_logger
+
     for score_type in score_types:
         print(f"Training dataset on score {score_type}")
         # load the image from train directory
@@ -63,7 +65,7 @@ if __name__ == '__main__':
             max_score = image_dataset.max_score,
             img_height = args.img_height,
             img_width = args.img_width,
-            dim = 4 if score_type in ['Centering', 'Edges'] else 3,
+            dim = 4 if score_type in ['Centering', 'Edges', 'Corners'] else 3,
             learning_rate = args.learning_rate,
             epochs = args.epochs,
             clean_log = args.clean_log,

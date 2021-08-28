@@ -8,7 +8,7 @@
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
-            "program": "./cropper/train.py",
+            "module": "task.extract_grade_data",
             "console": "integratedTerminal"
         }
     ]

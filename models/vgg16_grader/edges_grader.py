@@ -1,7 +1,7 @@
-from models.vgg16_grader_base import VGG16GraderBase
+from models.vgg16_grader.base import VGG16GraderBase
 import tensorflow as tf
 
-class VGG16GraderCentering(VGG16GraderBase):
+class VGG16GraderEdges(VGG16GraderBase):
     def __init__(
         self,        
         max_score : int = 10,
@@ -12,8 +12,8 @@ class VGG16GraderCentering(VGG16GraderBase):
         epochs : int = 10,
         clean_log : bool = False,
         clean_checkpoints : bool = False):
-        super(VGG16GraderCentering, self).__init__(
-            'Centering',
+        super(VGG16GraderEdges, self).__init__(
+            'Edges',
             max_score,
             img_height,
             img_width,
