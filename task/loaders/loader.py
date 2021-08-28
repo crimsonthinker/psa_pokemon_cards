@@ -125,7 +125,7 @@ class GraderImageLoader(object):
                     front_image = os.path.join(name, "front.jpg")
                     back_image = cv2.cvtColor(np.array(imread(back_image)), cv2.COLOR_BGR2RGB)
                     front_image = cv2.cvtColor(np.array(imread(front_image)), cv2.COLOR_BGR2RGB)
-                    preprocessed_image = self._preprocess(back_image, front_image, score_type)
+                    preprocessed_image = self.__preprocess(back_image, front_image, score_type)
                     # append the preprocessed image
                     if preprocessed_image is not None:
                         resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
