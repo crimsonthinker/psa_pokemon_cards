@@ -40,8 +40,6 @@ class UNETTrainer():
 
         self.pretrained_model_path = os.path.join('checkpoint/cropper/pretrained/checkpoint')
 
-        self.val_ratio = args.val_ratio
-
         self._logger = get_logger("UNETTrainer")
 
     def train(self, from_pretrained : bool = True):
@@ -149,8 +147,6 @@ if __name__ == '__main__':
         help="Number of epochs for training session")
     parser.add_argument("--batch_size", type=int, default=32, nargs='?',
         help="Batch size for training session")
-    parser.add_argument("--val_ratio", type=int, default=0.25, nargs='?',
-        help="Ratio of validation data")
     args = parser.parse_args()
 
     # train u net for card segmentation
