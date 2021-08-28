@@ -3,3 +3,4 @@ unet_labeled/*
 preprocessed_data/*
 checkpoint/*
 **/__pycache__/
+.log

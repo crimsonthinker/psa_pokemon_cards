@@ -1,10 +1,12 @@
-# PSA Grading Cards
+# PSA Cards Grading Module
 
 ## Introduction
 
-PSA Grading cards is an AI model built for scoring the quality of trading cards on 4 main aspects: Centering, Corners, Edges, and Surface. It uses one approach of transfer learning technique, fine-tuning, to construct the model using baseline models such as VGG16, ResNet, MobileNet.
+PSA Cards Grading Module is an AI model built for grading the quality of trading cards of 4 main aspects: Centering, Corners, Edges, and Surface. It uses one of the instances of transfer learning technique, fine-tuning, to construct the model using baseline models such as VGG16, ResNet, or MobileNet.
 
-The current model, built on VGG16, provided a very substantial result as the average difference between the target grade and the output from the model is about 0.1 (on the scale of 10).
+The current model, built on VGG16, provides two seperate network flow to learn different aspects of the image. Then, all information is gathered as a single 1-D layer, and it is propagated through several layers before outputing a grade for an aspect. Before feeding the images to the model, different layers of preprocessing are adopted (inclcuding cropping the card content using U-Net) to transform the images into a more "learnable" format. 
+
+Based on previous evaluation, it can be seen that there are some very substantial results as the average difference between the target grade and the output from the model is about 0.5 (on the scale of 10).
 
 ## Usage
 
