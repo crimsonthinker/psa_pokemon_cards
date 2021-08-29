@@ -88,7 +88,7 @@ class GraderImageLoader(object):
         file_names = list(glob.glob(os.path.join(self._train_directory, '*')))
         if self._enable_ray:
             @ray.remote
-            def _extract_contour(name : str, pba : ActorHandle):
+            def _extract_contour(name : str, pba : ActorHandle, preprocessor : VGG16PreProcessor):
                 try:
                     folders = name.split("/")
                     identifier = folders[-1]
@@ -96,7 +96,7 @@ class GraderImageLoader(object):
                     front_image = os.path.join(name, "front.jpg")
                     back_image = np.array(imread(back_image))
                     front_image = np.array(imread(front_image))
-                    preprocessed_image = self.__preprocess(back_image, front_image, score_type)
+                    preprocessed_image = self.__preprocess(back_image, front_image, score_type, preprocessor)
                     # append the preprocessed image
                     if preprocessed_image is not None:
                         resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
@@ -112,7 +112,7 @@ class GraderImageLoader(object):
             ray.init()
             pb = ProgressBar(len(file_names))
             actor = pb.actor
-            results = [_extract_contour.remote(name, actor) for name in file_names]
+            results = [_extract_contour.remote(name, actor, ray.put(self.preprocessor)) for name in file_names]
             pb.print_until_done()
             results = ray.get(results)
             ray.shutdown()
@@ -125,7 +125,7 @@ class GraderImageLoader(object):
                     front_image = os.path.join(name, "front.jpg")
                     back_image = cv2.cvtColor(np.array(imread(back_image)), cv2.COLOR_BGR2RGB)
                     front_image = cv2.cvtColor(np.array(imread(front_image)), cv2.COLOR_BGR2RGB)
-                    preprocessed_image = self.__preprocess(back_image, front_image, score_type)
+                    preprocessed_image = self.__preprocess(back_image, front_image, score_type, self.preprocessor)
                     # append the preprocessed image
                     if preprocessed_image is not None:
                         resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
@@ -141,7 +141,7 @@ class GraderImageLoader(object):
         self._images = [x[1] for x in results if x[1] is not None]
         self.failed_images_identifiers = [x[0] for x in results if x[1] is None]
 
-    def __preprocess(self, back_image : np.ndarray, front_image : np.ndarray, score_type : str) -> np.ndarray:
+    def __preprocess(self, back_image : np.ndarray, front_image : np.ndarray, score_type : str, preprocessor : VGG16PreProcessor = None) -> np.ndarray:
         """Preprocess image by cropping content out of contour and merge image.
         For each aspect, different preprocessing approach is used on the image
 
@@ -195,12 +195,12 @@ class GraderImageLoader(object):
             """
 
             # preprocess card
-            card = self.preprocessor.crop_image(image)
+            card = preprocessor.crop_image(image)
             if card is None:
                 # front card not exist
                 # border got messed up
-                card_pop = self.preprocessor.crop_card_for_light_image(image)
-                card_dim = self.preprocessor.crop_card_for_dark_image(image)
+                card_pop = preprocessor.crop_card_for_light_image(image)
+                card_dim = preprocessor.crop_card_for_dark_image(image)
                 if card_pop is not None or card_dim is not None:
                     if card_dim is None:
                         card = card_pop
@@ -238,9 +238,8 @@ class GraderImageLoader(object):
                     edg = np.expand_dims(cv2.Canny(card, 50, 150), -1)
                     card = np.concatenate([card,edg], axis = 2)
                 elif score_type == 'Surface':
-                    
-                    # Do nothing
-                    pass
+                    edg = np.expand_dims(cv2.Canny(card, 50, 150), -1)
+                    card = np.concatenate([card,edg], axis = 2)
             return card
 
         front_card = extract_card(front_image, score_type)
