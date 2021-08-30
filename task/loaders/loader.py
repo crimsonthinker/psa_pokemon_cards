@@ -69,6 +69,9 @@ class GraderImageLoader(object):
         self._val_identifier_scores = [] # list of validation identifier's score
         self.failed_images_identifiers = [] # list of unsucessfully preprocessed images
 
+        # preprocessor for Grader model
+        self._preprocessor = VGG16PreProcessor()
+
     def _preprocess(self, score_type : str):
         """Split dataset into train and test dataset
 
@@ -167,8 +170,6 @@ class GraderImageLoader(object):
         Return:
             (np.ndarray, np.ndarray) : A preprocessed image, with residual (if exist)
         """
-        # preprocessor for Grader model
-        self._preprocessor = VGG16PreProcessor()
 
         def pad_card(image : np.ndarray, desire_shape : tuple) -> np.ndarray:
             """Pad card image to appropriate size
