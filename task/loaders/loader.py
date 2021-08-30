@@ -2,6 +2,7 @@ import collections
 from matplotlib.image import imread
 import glob
 import os
+import logging
 import cv2
 import tensorflow as tf
 import numpy as np
@@ -70,7 +71,6 @@ class GraderImageLoader(object):
         self.failed_images_identifiers = [] # list of unsucessfully preprocessed images
 
     def _preprocess(self, score_type : str):
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
         """Split dataset into train and test dataset
 
         Args:
@@ -84,10 +84,12 @@ class GraderImageLoader(object):
         self._images = []
         self._identifiers = []
         self.failed_images = []
-        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))
+        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))[:12]
         if self._enable_ray:
             @ray.remote
             def _format_images(file_names: np.ndarray, pba : ActorHandle):
+                logging.disable(logging.WARNING) 
+                os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
                 results = []
                 cropper = VGG16PreProcessor()
                 for name in file_names:
