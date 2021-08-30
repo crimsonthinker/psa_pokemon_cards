@@ -358,11 +358,11 @@ class GraderImageLoader(object):
         self._train_img_ds = _read_dataset(
             self._train_paths,
             self._train_identifier_scores
-        ).batch(self._batch_size).cache()
+        ).batch(self._batch_size)
         self._validation_img_ds = _read_dataset(
             self._val_paths,
             self._val_identifier_scores
-        ).batch(self._batch_size).cache()
+        ).batch(self._batch_size)
         
     def get_train_ds(self):
         """Get training image dataset
