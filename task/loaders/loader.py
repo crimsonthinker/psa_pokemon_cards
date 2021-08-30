@@ -116,10 +116,9 @@ class GraderImageLoader(object):
                     pba.update.remote(1)
                     return results
             ray.init()
-            num_chunks = int(len(file_names) / 4)
-            pb = ProgressBar(num_chunks)
+            pb = ProgressBar(4)
             actor = pb.actor
-            results = [_format_images.remote(f_names, actor) for f_names in np.array_split(file_names,num_chunks)]
+            results = [_format_images.remote(f_names, actor) for f_names in np.array_split(file_names,4)]
             pb.print_until_done()
             results = ray.get(results)
             results = np.concatenate(results)

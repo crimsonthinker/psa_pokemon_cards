@@ -264,20 +264,19 @@ class VGG16PreProcessor(object):
             np.ndarray: [description]
         """
         # crop card
-        card = self.crop_image(image)
-        if card is None:
-            card_pop = self.crop_card_for_light_image(image)
-            card_dim = self.crop_card_for_dark_image(image)
-            if card_pop is not None or card_dim is not None:
-                if card_dim is None:
-                    card = card_pop
-                elif card_pop is None:
+        card_pop = self.crop_card_for_light_image(image)
+        card_dim = self.crop_card_for_dark_image(image)
+        if card_pop is not None or card_dim is not None:
+            if card_dim is None:
+                card = card_pop
+            elif card_pop is None:
+                card = card_dim
+            else:
+                if card_dim.shape[0] * card_dim.shape[1] < card_pop.shape[0] * card_pop.shape[1]:
                     card = card_dim
                 else:
-                    if card_dim.shape[0] * card_dim.shape[1] < card_pop.shape[0] * card_pop.shape[1]:
-                        card = card_dim
-                    else:
-                        card = card_pop
-            
+                    card = card_pop
+        else:
+            card = self.crop_image(image)
 
         return card
