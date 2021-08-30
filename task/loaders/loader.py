@@ -83,7 +83,7 @@ class GraderImageLoader(object):
         self._images = []
         self._identifiers = []
         self.failed_images = []
-        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))[:50]
+        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))
         if self._enable_ray:
             # Preprocess image with one thread only
             preprocessed_images = []
