@@ -145,7 +145,7 @@ class VGG16PreProcessor(object):
         PSA_HEIGHT = np.linalg.norm(box[3]-box[0])
         aligned_box = np.float32([[0, 0], [PSA_WIDTH, 0], [PSA_WIDTH, PSA_HEIGHT], [0, PSA_HEIGHT]])
         M = cv2.getPerspectiveTransform(box, aligned_box)
-        cropped_img = cv2.warpPerspective(image[self.shape[0]//4:,:], M, (PSA_WIDTH, PSA_HEIGHT))
+        cropped_img = cv2.warpPerspective(image[self.shape[0]//4:,:], M, (math.ceil(PSA_WIDTH), math.ceil(PSA_HEIGHT)))
 
         return cropped_img
 

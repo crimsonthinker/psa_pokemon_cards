@@ -13,6 +13,7 @@ import ray
 import traceback
 from ray.actor import ActorHandle
 import random
+from typing import Tuple
 
 from utils.ray_progress_bar import ProgressBar
 from utils.utilities import *
@@ -68,9 +69,6 @@ class GraderImageLoader(object):
         self._val_identifier_scores = [] # list of validation identifier's score
         self.failed_images_identifiers = [] # list of unsucessfully preprocessed images
 
-        # preprocessor for Grader model
-        self.preprocessor = VGG16PreProcessor()
-
     def _preprocess(self, score_type : str):
         """Split dataset into train and test dataset
 
@@ -85,21 +83,34 @@ class GraderImageLoader(object):
         self._images = []
         self._identifiers = []
         self.failed_images = []
-        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))
+        file_names = list(glob.glob(os.path.join(self._train_directory, '*')))[:50]
         if self._enable_ray:
+            # Preprocess image with one thread only
+            preprocessed_images = []
+            residuals = []
+            identifiers = []
+            for name in tqdm(file_names):
+                folders = name.split("/")
+                identifier = folders[-1]
+                back_image = os.path.join(name, "back.jpg")
+                front_image = os.path.join(name, "front.jpg")
+                back_image = np.array(imread(back_image))
+                front_image = np.array(imread(front_image))
+                preprocessed_image, residual = self.__preprocess(back_image, front_image, score_type)
+                identifiers.append(identifier)
+                preprocessed_images.append(preprocessed_image)
+                residuals.append(residual)
             @ray.remote
-            def _extract_contour(name : str, pba : ActorHandle, preprocessor : VGG16PreProcessor):
+            def _format_images(preprocessed_image : np.ndarray, residual : np.ndarray, identifier : str, pba : ActorHandle):
                 try:
-                    folders = name.split("/")
-                    identifier = folders[-1]
-                    back_image = os.path.join(name, "back.jpg")
-                    front_image = os.path.join(name, "front.jpg")
-                    back_image = np.array(imread(back_image))
-                    front_image = np.array(imread(front_image))
-                    preprocessed_image = self.__preprocess(back_image, front_image, score_type, preprocessor)
                     # append the preprocessed image
                     if preprocessed_image is not None:
                         resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
+                        if residual is not None:
+                            # concat the residual to the image
+                            residual = cv2.resize(residual, (self.img_width, self.img_height), cv2.INTER_AREA)
+                            residual = np.expand_dims(residual, -1)
+                            resized_preprocessed_image = np.concatenate([resized_preprocessed_image,residual], axis = 2)
                         pba.update.remote(1)
                         return (identifier, resized_preprocessed_image)
                     else:
@@ -107,12 +118,11 @@ class GraderImageLoader(object):
                         return (identifier, None)
                 except:
                     pba.update.remote(1)
-                    print(traceback.format_exc())
                     return (identifier, None)
             ray.init()
             pb = ProgressBar(len(file_names))
             actor = pb.actor
-            results = [_extract_contour.remote(name, actor, ray.put(self.preprocessor)) for name in file_names]
+            results = [_format_images.remote(preprocessed_image, residual, identifier, actor) for (preprocessed_image, residual), identifier in zip(zip(preprocessed_images, residuals), identifiers)]
             pb.print_until_done()
             results = ray.get(results)
             ray.shutdown()
@@ -125,10 +135,14 @@ class GraderImageLoader(object):
                     front_image = os.path.join(name, "front.jpg")
                     back_image = cv2.cvtColor(np.array(imread(back_image)), cv2.COLOR_BGR2RGB)
                     front_image = cv2.cvtColor(np.array(imread(front_image)), cv2.COLOR_BGR2RGB)
-                    preprocessed_image = self.__preprocess(back_image, front_image, score_type, self.preprocessor)
+                    preprocessed_image, residual = self.__preprocess(back_image, front_image, score_type)
                     # append the preprocessed image
                     if preprocessed_image is not None:
                         resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
+                        if residual is not None:
+                            residual = cv2.resize(residual, (self.img_width, self.img_height), cv2.INTER_AREA)
+                            residual = np.expand_dims(residual, -1)
+                            resized_preprocessed_image = np.concatenate([resized_preprocessed_image,residual], axis = 2)
                         return (identifier, resized_preprocessed_image)
                     else:
                         return (identifier, None)
@@ -141,7 +155,7 @@ class GraderImageLoader(object):
         self._images = [x[1] for x in results if x[1] is not None]
         self.failed_images_identifiers = [x[0] for x in results if x[1] is None]
 
-    def __preprocess(self, back_image : np.ndarray, front_image : np.ndarray, score_type : str, preprocessor : VGG16PreProcessor = None) -> np.ndarray:
+    def __preprocess(self, back_image : np.ndarray, front_image : np.ndarray, score_type : str) -> Tuple[np.ndarray, np.ndarray]:
         """Preprocess image by cropping content out of contour and merge image.
         For each aspect, different preprocessing approach is used on the image
 
@@ -151,8 +165,10 @@ class GraderImageLoader(object):
             front_image (np.ndarray): front image of the card
             score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
         Return:
-            (np.ndarray) : A preprocessed image
+            (np.ndarray, np.ndarray) : A preprocessed image, with residual (if exist)
         """
+        # preprocessor for Grader model
+        self._preprocessor = VGG16PreProcessor()
 
         def pad_card(image : np.ndarray, desire_shape : tuple) -> np.ndarray:
             """Pad card image to appropriate size
@@ -164,7 +180,10 @@ class GraderImageLoader(object):
             Returns:
                 np.ndarray: padded card image
             """
-            height, width, _ = image.shape
+            if image.ndim == 2:
+                height, width = image.shape
+            else:
+                height, width, _ = image.shape
             desire_height = desire_shape[0]
             desire_width = desire_shape[1]
             top = int((desire_height - height) / 2)
@@ -194,13 +213,11 @@ class GraderImageLoader(object):
                 np.ndarray: cropped card image
             """
 
-            # preprocess card
-            card = preprocessor.crop_image(image)
+            # crop card
+            card = self._preprocessor.crop_image(image)
             if card is None:
-                # front card not exist
-                # border got messed up
-                card_pop = preprocessor.crop_card_for_light_image(image)
-                card_dim = preprocessor.crop_card_for_dark_image(image)
+                card_pop = self._preprocessor.crop_card_for_light_image(image)
+                card_dim = self._preprocessor.crop_card_for_dark_image(image)
                 if card_pop is not None or card_dim is not None:
                     if card_dim is None:
                         card = card_pop
@@ -222,9 +239,8 @@ class GraderImageLoader(object):
                     top = np.concatenate((top_left, top_right), axis = 1)
                     bottom = np.concatenate((bottom_left, bottom_right), axis = 1)
                     card = np.concatenate((top, bottom), axis = 0)
-                    edg = np.expand_dims(cv2.Canny(card, 50, 150), -1)
-                    edg[100:300,100:300,:] = 0 # remove centering part
-                    card = np.concatenate([card,edg], axis = 2)
+                    edg = cv2.Canny(card, 50, 150)
+                    edg[100:300,100:300] = 0 # remove centering part
                 elif score_type == 'Edges' or score_type == 'Centering':
                     left = rotate(card[:,:200,:], 180)
                     right = card[:,-200:,:]
@@ -235,15 +251,13 @@ class GraderImageLoader(object):
                     # pad top and bottom 
                     obj = tuple([pad_card(x, (max_height, max_width)) for x in [left, right, top, bottom]])
                     card = np.concatenate(obj, axis = 1)
-                    edg = np.expand_dims(cv2.Canny(card, 50, 150), -1)
-                    card = np.concatenate([card,edg], axis = 2)
+                    edg = cv2.Canny(card, 50, 150)
                 elif score_type == 'Surface':
-                    edg = np.expand_dims(cv2.Canny(card, 50, 150), -1)
-                    card = np.concatenate([card,edg], axis = 2)
-            return card
+                    edg = cv2.Canny(card, 50, 150)
+            return card, edg
 
-        front_card = extract_card(front_image, score_type)
-        back_card = extract_card(back_image, score_type)
+        front_card, front_residual = extract_card(front_image, score_type)
+        back_card, back_residual = extract_card(back_image, score_type)
 
         # If the aspect is 'Centering', only use the back image.
         # Other wise merge the card
@@ -255,11 +269,14 @@ class GraderImageLoader(object):
                 max_height = max(front_height, back_height)
                 max_width = max(front_width, back_width)
                 front_card = pad_card(front_card, (max_height, max_width))
+                front_residual = pad_card(front_residual, (max_height, max_width))
                 back_card = pad_card(back_card, (max_height, max_width))
+                back_residual = pad_card(back_residual, (max_height, max_width))
                 merge_image = np.concatenate((front_card, back_card), axis = 1) # merge
-                return merge_image
+                merge_residual = np.concatenate((front_residual, back_residual), axis = 1) # merge
+                return merge_image, merge_residual
         elif back_card is not None:
-            return back_card
+            return back_card, back_residual
 
         return None
 
