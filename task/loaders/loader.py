@@ -69,9 +69,6 @@ class GraderImageLoader(object):
         self._val_identifier_scores = [] # list of validation identifier's score
         self.failed_images_identifiers = [] # list of unsucessfully preprocessed images
 
-        # preprocessor for Grader model
-        self._cropper = VGG16PreProcessor()
-
     def _preprocess(self, score_type : str):
         """Split dataset into train and test dataset
 
@@ -88,51 +85,47 @@ class GraderImageLoader(object):
         self.failed_images = []
         file_names = list(glob.glob(os.path.join(self._train_directory, '*')))
         if self._enable_ray:
-            # Preprocess image with one thread only
-            front_images = []
-            back_images = []
-            identifiers = []
-            for name in tqdm(file_names):
-                folders = name.split("/")
-                identifier = folders[-1]
-                back_image = os.path.join(name, "back.jpg")
-                front_image = os.path.join(name, "front.jpg")
-                back_image = np.array(imread(back_image))
-                front_image = np.array(imread(front_image))
-                front_image = self._cropper.crop(front_image)
-                back_image = self._cropper.crop(back_image)
-                identifiers.append(identifier)
-                front_images.append(front_image)
-                back_images.append(back_image)
             @ray.remote
-            def _format_images(front_image : np.ndarray, back_image : np.ndarray, identifier : str, pba : ActorHandle):
-                try:
-                    # append the preprocessed image
-                    preprocessed_image, residual = self.__preprocess(front_image, back_image, score_type)
-                    if preprocessed_image is not None:
-                        resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
-                        if residual is not None:
-                            # concat the residual to the image
-                            residual = cv2.resize(residual, (self.img_width, self.img_height), cv2.INTER_AREA)
-                            residual = np.expand_dims(residual, -1)
-                            resized_preprocessed_image = np.concatenate([resized_preprocessed_image,residual], axis = 2)
-                        pba.update.remote(1)
-                        return (identifier, resized_preprocessed_image)
-                    else:
-                        pba.update.remote(1)
-                        return (identifier, None)
-                except:
-                    print(traceback.format_exc())
+            def _format_images(file_names: np.ndarray, pba : ActorHandle):
+                results = []
+                cropper = VGG16PreProcessor()
+                for name in file_names:
+                    try:
+                        folders = name.split("/")
+                        identifier = folders[-1]
+                        back_image = os.path.join(name, "back.jpg")
+                        front_image = os.path.join(name, "front.jpg")
+                        back_image = np.array(imread(back_image))
+                        front_image = np.array(imread(front_image))
+                        front_image = cropper.crop(front_image)
+                        back_image = cropper.crop(back_image)
+                        # append the preprocessed image
+                        preprocessed_image, residual = self.__preprocess(front_image, back_image, score_type)
+                        if preprocessed_image is not None:
+                            resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
+                            if residual is not None:
+                                # concat the residual to the image
+                                residual = cv2.resize(residual, (self.img_width, self.img_height), cv2.INTER_AREA)
+                                residual = np.expand_dims(residual, -1)
+                                resized_preprocessed_image = np.concatenate([resized_preprocessed_image,residual], axis = 2)
+                            results.append((identifier, resized_preprocessed_image))
+                        else:
+                            results.append((identifier, None))
+                    except:
+                        results.append((identifier, None))
                     pba.update.remote(1)
-                    return (identifier, None)
+                    return results
             ray.init()
-            pb = ProgressBar(len(file_names))
+            num_chunks = int(len(file_names) / 4)
+            pb = ProgressBar(num_chunks)
             actor = pb.actor
-            results = [_format_images.remote(front_image, back_image, identifier, actor) for (front_image, back_image), identifier in zip(zip(front_images, back_images), identifiers)]
+            results = [_format_images.remote(f_names, actor) for f_names in np.array_split(file_names,num_chunks)]
             pb.print_until_done()
             results = ray.get(results)
+            results = np.concatenate(results)
             ray.shutdown()
         else:
+            cropper = VGG16PreProcessor()
             def _format_images(name : str):
                 try:
                     folders = name.split("/")
@@ -141,8 +134,8 @@ class GraderImageLoader(object):
                     front_image = os.path.join(name, "front.jpg")
                     back_image = cv2.cvtColor(np.array(imread(back_image)), cv2.COLOR_BGR2RGB)
                     front_image = cv2.cvtColor(np.array(imread(front_image)), cv2.COLOR_BGR2RGB)
-                    front_image = self._cropper.crop(front_image)
-                    back_image = self._cropper.crop(back_image)
+                    front_image = cropper.crop(front_image)
+                    back_image = cropper.crop(back_image)
                     preprocessed_image, residual = self.__preprocess(back_image, front_image, score_type)
                     # append the preprocessed image
                     if preprocessed_image is not None:
@@ -155,7 +148,6 @@ class GraderImageLoader(object):
                     else:
                         return (identifier, None)
                 except:
-                    print(traceback.format_exc())
                     return (identifier, None)
             results = [_format_images(name) for name in tqdm(file_names)]
         results = [x for x in results if x is not None]
@@ -327,7 +319,6 @@ class GraderImageLoader(object):
         Args:
             score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
         """
-        autotune = tf.data.AUTOTUNE
 
         self.train_identifier_list = []
         self.score_type = score_type
@@ -367,11 +358,11 @@ class GraderImageLoader(object):
         self._train_img_ds = _read_dataset(
             self._train_paths,
             self._train_identifier_scores
-        ).batch(self._batch_size).cache().prefetch(buffer_size = autotune)
+        ).batch(self._batch_size).cache()
         self._validation_img_ds = _read_dataset(
             self._val_paths,
             self._val_identifier_scores
-        ).batch(self._batch_size).cache().prefetch(buffer_size = autotune)
+        ).batch(self._batch_size).cache()
         
     def get_train_ds(self):
         """Get training image dataset
