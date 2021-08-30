@@ -70,6 +70,7 @@ class GraderImageLoader(object):
         self.failed_images_identifiers = [] # list of unsucessfully preprocessed images
 
     def _preprocess(self, score_type : str):
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
         """Split dataset into train and test dataset
 
         Args:
