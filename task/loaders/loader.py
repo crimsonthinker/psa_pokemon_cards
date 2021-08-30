@@ -70,7 +70,7 @@ class GraderImageLoader(object):
         self.failed_images_identifiers = [] # list of unsucessfully preprocessed images
 
         # preprocessor for Grader model
-        self._preprocessor = VGG16PreProcessor()
+        self._cropper = VGG16PreProcessor()
 
     def _preprocess(self, score_type : str):
         """Split dataset into train and test dataset
@@ -89,8 +89,8 @@ class GraderImageLoader(object):
         file_names = list(glob.glob(os.path.join(self._train_directory, '*')))
         if self._enable_ray:
             # Preprocess image with one thread only
-            preprocessed_images = []
-            residuals = []
+            front_images = []
+            back_images = []
             identifiers = []
             for name in tqdm(file_names):
                 folders = name.split("/")
@@ -99,14 +99,16 @@ class GraderImageLoader(object):
                 front_image = os.path.join(name, "front.jpg")
                 back_image = np.array(imread(back_image))
                 front_image = np.array(imread(front_image))
-                preprocessed_image, residual = self.__preprocess(back_image, front_image, score_type)
+                front_image = self._cropper.crop(front_image)
+                back_image = self._cropper.crop(back_image)
                 identifiers.append(identifier)
-                preprocessed_images.append(preprocessed_image)
-                residuals.append(residual)
+                front_images.append(front_image)
+                back_images.append(back_image)
             @ray.remote
-            def _format_images(preprocessed_image : np.ndarray, residual : np.ndarray, identifier : str, pba : ActorHandle):
+            def _format_images(front_image : np.ndarray, back_image : np.ndarray, identifier : str, pba : ActorHandle):
                 try:
                     # append the preprocessed image
+                    preprocessed_image, residual = self.__preprocess(front_image, back_image, score_type)
                     if preprocessed_image is not None:
                         resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
                         if residual is not None:
@@ -120,17 +122,18 @@ class GraderImageLoader(object):
                         pba.update.remote(1)
                         return (identifier, None)
                 except:
+                    print(traceback.format_exc())
                     pba.update.remote(1)
                     return (identifier, None)
             ray.init()
             pb = ProgressBar(len(file_names))
             actor = pb.actor
-            results = [_format_images.remote(preprocessed_image, residual, identifier, actor) for (preprocessed_image, residual), identifier in zip(zip(preprocessed_images, residuals), identifiers)]
+            results = [_format_images.remote(front_image, back_image, identifier, actor) for (front_image, back_image), identifier in zip(zip(front_images, back_images), identifiers)]
             pb.print_until_done()
             results = ray.get(results)
             ray.shutdown()
         else:
-            def _extract_contour(name : str):
+            def _format_images(name : str):
                 try:
                     folders = name.split("/")
                     identifier = folders[-1]
@@ -138,6 +141,8 @@ class GraderImageLoader(object):
                     front_image = os.path.join(name, "front.jpg")
                     back_image = cv2.cvtColor(np.array(imread(back_image)), cv2.COLOR_BGR2RGB)
                     front_image = cv2.cvtColor(np.array(imread(front_image)), cv2.COLOR_BGR2RGB)
+                    front_image = self._cropper.crop(front_image)
+                    back_image = self._cropper.crop(back_image)
                     preprocessed_image, residual = self.__preprocess(back_image, front_image, score_type)
                     # append the preprocessed image
                     if preprocessed_image is not None:
@@ -152,20 +157,20 @@ class GraderImageLoader(object):
                 except:
                     print(traceback.format_exc())
                     return (identifier, None)
-            results = [_extract_contour(name) for name in tqdm(file_names)]
+            results = [_format_images(name) for name in tqdm(file_names)]
         results = [x for x in results if x is not None]
         self._identifiers = [x[0] for x in results if x[1] is not None]
         self._images = [x[1] for x in results if x[1] is not None]
         self.failed_images_identifiers = [x[0] for x in results if x[1] is None]
 
-    def __preprocess(self, back_image : np.ndarray, front_image : np.ndarray, score_type : str) -> Tuple[np.ndarray, np.ndarray]:
+    def __preprocess(self, front_image : np.ndarray, back_image : np.ndarray, score_type : str) -> Tuple[np.ndarray, np.ndarray]:
         """Preprocess image by cropping content out of contour and merge image.
         For each aspect, different preprocessing approach is used on the image
 
 
         Args:
-            back_image (np.ndarray): back image of the card
             front_image (np.ndarray): front image of the card
+            back_image (np.ndarray): back image of the card
             score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
         Return:
             (np.ndarray, np.ndarray) : A preprocessed image, with residual (if exist)
@@ -203,32 +208,16 @@ class GraderImageLoader(object):
                 value = 0
             )
 
-        def extract_card(image : np.ndarray, score_type : str) -> np.ndarray:
+        def extract_card(card : np.ndarray, score_type : str) -> np.ndarray:
             """Extract card content using VGG16Preprocessor and preprocess it to appropriate format.
 
             Args:
-                image (np.ndarray): card image
+                card (np.ndarray): card image
                 score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
 
             Returns:
                 np.ndarray: cropped card image
             """
-
-            # crop card
-            card = self._preprocessor.crop_image(image)
-            if card is None:
-                card_pop = self._preprocessor.crop_card_for_light_image(image)
-                card_dim = self._preprocessor.crop_card_for_dark_image(image)
-                if card_pop is not None or card_dim is not None:
-                    if card_dim is None:
-                        card = card_pop
-                    elif card_pop is None:
-                        card = card_dim
-                    else:
-                        if card_dim.shape[0] * card_dim.shape[1] < card_pop.shape[0] * card_pop.shape[1]:
-                            card = card_dim
-                        else:
-                            card = card_pop
 
             # format card
             if card is not None:
@@ -257,6 +246,7 @@ class GraderImageLoader(object):
                     edg = cv2.Canny(card, 50, 150)
             return card, edg
 
+        
         front_card, front_residual = extract_card(front_image, score_type)
         back_card, back_residual = extract_card(back_image, score_type)
 
