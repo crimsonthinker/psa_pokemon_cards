@@ -278,3 +278,5 @@ class VGG16PreProcessor(object):
                     card = card_pop
         else:
             card = self.crop_image(image)
+
+        return card
