@@ -97,6 +97,8 @@ class GraderImageLoader(object):
                         front_image = os.path.join(name, "front.jpg")
                         back_image = np.array(imread(back_image))
                         front_image = np.array(imread(front_image))
+                        back_image = cv2.cvtColor(np.array(imread(back_image)), cv2.COLOR_BGR2RGB)
+                        front_image = cv2.cvtColor(np.array(imread(front_image)), cv2.COLOR_BGR2RGB)
                         front_image = cropper.crop(front_image)
                         back_image = cropper.crop(back_image)
                         # append the preprocessed image
