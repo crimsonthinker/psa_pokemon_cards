@@ -226,7 +226,7 @@ class GraderImageLoader(object):
                     top = np.concatenate((top_left, top_right), axis = 1)
                     bottom = np.concatenate((bottom_left, bottom_right), axis = 1)
                     card = np.concatenate((top, bottom), axis = 0)
-                    edg = cv2.Canny(card, 50, 150)
+                    edg = cv2.Canny(card, 100, 200)
                     edg[100:300,100:300] = 0 # remove centering part
                 elif score_type == 'Edges' or score_type == 'Centering':
                     left = rotate(card[:,:200,:], 180)
@@ -238,9 +238,9 @@ class GraderImageLoader(object):
                     # pad top and bottom 
                     obj = tuple([pad_card(x, (max_height, max_width)) for x in [left, right, top, bottom]])
                     card = np.concatenate(obj, axis = 1)
-                    edg = cv2.Canny(card, 50, 150)
+                    edg = cv2.Canny(card, 100, 200)
                 elif score_type == 'Surface':
-                    edg = cv2.Canny(card, 50, 150)
+                    edg = cv2.Canny(card, 100, 200)
             return card, edg
 
         
