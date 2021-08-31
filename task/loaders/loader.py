@@ -117,6 +117,7 @@ class GraderImageLoader(object):
                         else:
                             results.append((identifier, None))
                     except:
+                        print(traceback.format_exc())
                         results.append((identifier, None))
                     pba.update.remote(1)
                     return results
@@ -153,6 +154,7 @@ class GraderImageLoader(object):
                     else:
                         return (identifier, None)
                 except:
+                    print(traceback.format_exc())
                     return (identifier, None)
             results = [_format_images(name) for name in tqdm(file_names)]
         results = [x for x in results if x is not None]
