@@ -25,10 +25,10 @@ class VGG16GraderCorners(VGG16GraderBase):
         )
 
     def _define_remain_layer(self, inputs):
-      self._remains_conv_0 = tf.keras.layers.Conv2D(128, (3,3), activation = 'relu')(inputs)
+      self._remains_conv_0 = tf.keras.layers.Conv2D(32, (3,3), activation = 'relu')(inputs)
       self._remains_pool_0 = tf.keras.layers.MaxPooling2D((2,2))(self._remains_conv_0)
       self._remains_dropout = tf.keras.layers.Dropout(0.3)(self._remains_pool_0)
-      self._remains_conv_1 = tf.keras.layers.Conv2D(128, (3,3), activation = 'relu')(self._remains_dropout)
+      self._remains_conv_1 = tf.keras.layers.Conv2D(32, (3,3), activation = 'relu')(self._remains_dropout)
       self._remains_pool_1 = tf.keras.layers.MaxPooling2D((2,2))(self._remains_conv_1)
       return tf.keras.layers.Flatten()(self._remains_pool_1)
 
