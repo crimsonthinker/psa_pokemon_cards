@@ -6,3 +6,4 @@ checkpoint/grader/20*
 !checkpoint/cropper/pretrained/*
 !checkpoint/grader/pretrained/*
 .vscode/*
+__pycache__/
