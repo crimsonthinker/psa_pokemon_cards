@@ -1,4 +1,3 @@
-from re import I
 from utils.preprocessor import VGG16PreProcessor
 import os
 import cv2
