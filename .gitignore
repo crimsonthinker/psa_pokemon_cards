@@ -1,4 +1,4 @@
-data/images/*
+data/*
 unet_labeled/*
 preprocessed_data/*
 checkpoint/cropper/20*
