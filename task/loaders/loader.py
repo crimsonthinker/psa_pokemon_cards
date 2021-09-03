@@ -465,7 +465,7 @@ class UNETDataLoader(object):
 		self.test_pivot = 0
 		self.num_batch4test = -1
 
-		self.mask_path = os.path.join("data", "mask.png")
+		self.mask_path = os.path.join("task/loaders/mask.png")
 		self.mask = None
 
 		

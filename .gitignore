@@ -5,8 +5,6 @@
 *.npy
 
 data/*
-!data/grades.csv
-!data/mask.png
 unet_labeled/*
 data/images/*
 unet_labeled/*
