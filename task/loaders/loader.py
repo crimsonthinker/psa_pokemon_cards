@@ -133,7 +133,9 @@ class GraderImageLoader(object):
 			results = np.concatenate(results)
 			ray.shutdown()
 		else:
-			cropper = VGG16PreProcessor()
+			cropper = VGG16PreProcessor(self.origin_img_height,
+										self.origin_img_width,
+										3)
 			def _format_images(name : str):
 				try:
 					folders = name.split("/")

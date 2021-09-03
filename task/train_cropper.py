@@ -10,15 +10,9 @@ import json
 from models.unet import UNET
 from task.loaders import UNETDataLoader
 
-class UNETTrainer():
-    """Trainer classs for UNET
-    """
-    def __init__(self, args):
-        """init function
 
-        Args:
-            args: argparse aurgument 
-        """
+class UNETTrainer():
+    def __init__(self, args):
         self.model = UNET((args.img_height, args.img_width, args.dim))
         self.dataloader = UNETDataLoader(
             batch_size = args.batch_size,
@@ -28,7 +22,7 @@ class UNETTrainer():
         )
         self.model.build(input_shape=(1, args.img_height, args.img_width, args.dim))
         
-        self.optimizer = tf.keras.optimizers.Adam(lr=5e-6)
+        self.optimizer = tf.keras.optimizers.Adam(lr=5e-5)
         self.loss = tf.keras.losses.BinaryCrossentropy()
         self.accuracy_metric = tf.keras.metrics.BinaryAccuracy()
         self.iou_metric = tf.keras.metrics.MeanIoU(num_classes=2)
@@ -40,16 +34,11 @@ class UNETTrainer():
 
         self.pretrained_model_path = os.path.join('checkpoint/cropper/pretrained/checkpoint')
 
-        self._logger = get_logger("UNETTrainer")
+        self.val_ratio = args.val_ratio
 
-    def train(self, from_pretrained : bool = True):
-        """Training function
-
-        Args:
-            from_pretrained (bool, optional): begin training function from pretrained. Defaults to True.
-        """
+    def train(self, from_pretrained = True):
         self.history = []
-        self.dataloader.load()
+        self.dataloader.load(mask=True)
         self.dataloader.split(ratio = 1 - self.val_ratio)
         self.dataloader.shuffle()
         if from_pretrained: # if we start from pre-trained checkpoints
@@ -95,7 +84,7 @@ class UNETTrainer():
                                 np.mean(train_loss), np.mean(train_accuracy), np.mean(train_iou), 
                                 np.mean(test_loss), np.mean(test_accuracy), np.mean(test_iou)
             )
-            self._logger.info(template)
+            print(template)
             self.dataloader.shuffle()
             self.dataloader.reset()
 
@@ -119,7 +108,8 @@ class UNETTrainer():
     def predict(self, inputs, ground_truths, is_train=True):
         preds = self.model(inputs, training=is_train)
 
-        loss = self.loss(preds, ground_truths)
+        loss = self.loss(preds, ground_truths, sample_weight=self.dataloader.mask)
+        # loss = self.loss(preds, ground_truths)
         accuracy = self.accuracy_metric(preds, ground_truths)
         iou = self.iou_metric(preds, ground_truths)
         return loss, accuracy, iou
@@ -143,10 +133,12 @@ if __name__ == '__main__':
         help="Image width for the training session")
     parser.add_argument("--dim", type=int, default=3, nargs='?',
         help="Image didmension for the training session")
-    parser.add_argument("--epochs", type=int, default=40, nargs='?',
+    parser.add_argument("--epochs", type=int, default=80, nargs='?',
         help="Number of epochs for training session")
-    parser.add_argument("--batch_size", type=int, default=32, nargs='?',
+    parser.add_argument("--batch_size", type=int, default=16, nargs='?',
         help="Batch size for training session")
+    parser.add_argument("--val_ratio", type=int, default=0.25, nargs='?',
+        help="Ratio of validation data")
     args = parser.parse_args()
 
     # train u net for card segmentation
