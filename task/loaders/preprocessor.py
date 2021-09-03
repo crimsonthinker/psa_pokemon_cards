@@ -279,7 +279,7 @@ class VGG16PreProcessor(object):
 		# crop card
 		card = self.crop_image(image)
 		ratio = (card.shape[0]/card.shape[1])
-		if ratio < 1.38  and ratio > 1.41:
+		if ratio < 1.34  and ratio > 1.42:
 			card = None
 			card_pop = self.crop_card_for_light_image(image)
 			card_dim = self.crop_card_for_dark_image(image)
