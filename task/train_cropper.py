@@ -28,7 +28,7 @@ class UNETTrainer():
         )
         self.model.build(input_shape=(1, args.img_height, args.img_width, args.dim))
         
-        self.optimizer = tf.keras.optimizers.Adam(lr=5e-6)
+        self.optimizer = tf.keras.optimizers.Adam(lr=5e-5)
         self.loss = tf.keras.losses.BinaryCrossentropy()
         self.accuracy_metric = tf.keras.metrics.BinaryAccuracy()
         self.iou_metric = tf.keras.metrics.MeanIoU(num_classes=2)
@@ -49,7 +49,7 @@ class UNETTrainer():
             from_pretrained (bool, optional): begin training function from pretrained. Defaults to True.
         """
         self.history = []
-        self.dataloader.load()
+        self.dataloader.load(mask=True)
         self.dataloader.split(ratio = 1 - self.val_ratio)
         self.dataloader.shuffle()
         if from_pretrained: # if we start from pre-trained checkpoints
@@ -119,7 +119,8 @@ class UNETTrainer():
     def predict(self, inputs, ground_truths, is_train=True):
         preds = self.model(inputs, training=is_train)
 
-        loss = self.loss(preds, ground_truths)
+        loss = self.loss(preds, ground_truths, sample_weight=self.dataloader.mask)
+        # loss = self.loss(preds, ground_truths)
         accuracy = self.accuracy_metric(preds, ground_truths)
         iou = self.iou_metric(preds, ground_truths)
         return loss, accuracy, iou
@@ -133,9 +134,9 @@ class UNETTrainer():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--origin_img_height", type=int, default=2698, nargs='?',
+    parser.add_argument("--origin_img_height", type=int, default=3147, nargs='?',
         help="Origin image height for the training session")
-    parser.add_argument("--origin_img_width", type=int, default=1620, nargs='?',
+    parser.add_argument("--origin_img_width", type=int, default=1860, nargs='?',
         help="Original image width for the training session")
     parser.add_argument("--img_height", type=int, default=512, nargs='?',
         help="Image height for the training session")
@@ -143,9 +144,9 @@ if __name__ == '__main__':
         help="Image width for the training session")
     parser.add_argument("--dim", type=int, default=3, nargs='?',
         help="Image didmension for the training session")
-    parser.add_argument("--epochs", type=int, default=40, nargs='?',
+    parser.add_argument("--epochs", type=int, default=80, nargs='?',
         help="Number of epochs for training session")
-    parser.add_argument("--batch_size", type=int, default=32, nargs='?',
+    parser.add_argument("--batch_size", type=int, default=16, nargs='?',
         help="Batch size for training session")
     args = parser.parse_args()
 

@@ -9,9 +9,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_directory", type=str, default='data', nargs='?',
         help="Training directory")
-    parser.add_argument("--img_height", type=int, default=256, nargs='?',
+    parser.add_argument("--img_height", type=int, default=512, nargs='?',
         help="Image height for the training session")
-    parser.add_argument("--img_width", type=int, default=256, nargs='?',
+    parser.add_argument("--img_width", type=int, default=512, nargs='?',
         help="Image width for the training session")
     parser.add_argument("--model_score_type", type=str, default=[], nargs='+',
         help="Score type of the model. Leave blank if run all.")

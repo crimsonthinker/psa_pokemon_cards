@@ -37,8 +37,10 @@ class UNETPreProcessor(object):
         self.train_image_paths = []
         self.test_image_paths = []
 
+        self.unified_height = 3147
+        self.unified_width = 1860
         self.shape = (height, width, dim)
-        self.feed_size = (405, 506) # fixed feed size
+        self.feed_size = (405, 506)
 
     def load(self):
         """Load unpreprocessed file paths
@@ -54,7 +56,7 @@ class UNETPreProcessor(object):
         for img_path in tqdm(self.test_image_paths):
             self.process(img_path, isTrain=False)
     
-    def process(self, img_path : str, isTrain : bool = True):
+    def process(self, img_path : str, is_train : bool = True):
         """Preprocess image and save to destination folder
 
         Args:
@@ -84,14 +86,16 @@ class UNETPreProcessor(object):
 
         front_path = os.path.join(img_path, "front.jpg")
         back_path = os.path.join(img_path, "back.jpg")
-
+        if not os.path.exists(front_path) or not os.path.exists(back_path):
+            print(img_name)
+            return
         front_img = cv2.imread(front_path, cv2.IMREAD_COLOR)
         back_img = cv2.imread(back_path, cv2.IMREAD_COLOR)
 
         input_f, gtr_f = _preprocess(front_img, 'front')
         input_b, gtr_b = _preprocess(back_img, 'back')
 
-        img_folder = os.path.join(self.train_save_path, img_name) if isTrain else \
+        img_folder = os.path.join(self.train_save_path, img_name) if is_train else \
                     os.path.join(self.test_save_path, img_name)
         if not os.path.isdir(img_folder):
             os.mkdir(img_folder)
@@ -100,18 +104,56 @@ class UNETPreProcessor(object):
         cv2.imwrite("{}/gtr_front.jpg".format(img_folder), gtr_f)
         cv2.imwrite("{}/gtr_back.jpg".format(img_folder), gtr_b)
 
-class VGG16PreProcessor(object):
-    """A VGG16 preprocessor class
+    def align_pts(self, pts : np.ndarray, shape : tuple):
+        """Align points based on new shape
 
-    Args:
-        object ([type]): [description]
-    """
+        Args:
+            pts (np.ndarray): list of points
+            shape (tuple): image shape to be used for aligning
+
+        Returns:
+            np.ndarray: aligned list of points
+        """
+        for i in range(len(pts)):
+            pts[i][0] = round(pts[i][0]*self.unified_width / shape[1])
+            pts[i][1] = round(pts[i][1]*self.unified_height / shape[0])
+        return pts
+
+class VGG16PreProcessor(object):
     def __init__(self):
-        self.shape = (2698, 1620, 3) # Default shape
-        self.feed_size = (405, 506) # feed shape
-        self.model = UNET() #Unet model
+        self.shape = (3147, 1860, 3)
+        self.feed_size = (405, 506)
+        self.model = UNET()
         self.pretrained_model_path = os.path.join('checkpoint/cropper/pretrained/checkpoint')
         self.model.load_weights(self.pretrained_model_path)
+
+    def crop(self,image : np.ndarray) -> np.ndarray:
+        """crop card image
+
+        Args:
+            image (np.ndarray): [description]
+
+        Returns:
+            np.ndarray: [description]
+        """
+        # crop card
+        card = self.crop_image(image)
+        if card is None:
+            card_pop = self.crop_card_for_light_image(image)
+            card_dim = self.crop_card_for_dark_image(image)
+
+            if card_pop is not None or card_dim is not None:
+                if card_dim is None:
+                    card = card_pop
+                elif card_pop is None:
+                    card = card_dim
+                else:
+                    if card_dim.shape[0] * card_dim.shape[1] < card_pop.shape[0] * card_pop.shape[1]:
+                        card = card_dim
+                    else:
+                        card = card_pop
+
+        return card
 
     def crop_image(self, image : np.ndarray) -> np.ndarray:
         """Crop image to feed to UNet
@@ -122,15 +164,17 @@ class VGG16PreProcessor(object):
         Returns:
             np.ndarray: cropped image
         """
-        # feed image to image to get mask
+        image = cv2.resize(image, (1860, 3147), interpolation = cv2.INTER_AREA)
         inputs_img = np.zeros([1, 512, 512, 3], np.float32)
-        inputs_img[0][:506, :405] = cv2.resize(image[self.shape[0]//4:,:], self.feed_size, interpolation = cv2.INTER_AREA).astype(np.float32) / 255.0
+        origin_image = cv2.resize(image[self.shape[0]//4:,:], self.feed_size, interpolation = cv2.INTER_AREA).astype(np.float32)
+        ### Normalize Pixel Value For Each RGB Channel
+        for i in range(3):
+            inputs_img[0][:506, :405][:, :, i]	= (origin_image[:, :, i] - origin_image[:, :, i].mean()) / np.sqrt(origin_image[:, :, i].var() + 0.001)
         preds = self.model(convert_to_tensor(inputs_img), training=False).numpy()
         pred_mask = preds[0][:506, :405]
         pred_mask[pred_mask>=0.5] = 1.0
         pred_mask[pred_mask<0.5] = 0.0
 
-        # Get the most appropriate mask
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(16,27))
         pred_mask = cv2.morphologyEx(pred_mask, cv2.MORPH_OPEN, kernel)
                                                  
@@ -138,15 +182,13 @@ class VGG16PreProcessor(object):
         c = np.concatenate(contours, axis=0)
         rect = cv2.minAreaRect(c)
         box = cv2.boxPoints(rect)
-        box = self.rearrange_box(box) * 4
+        box = self.rearrange_box(box)
 
-        # Cropped image basedon the mask
-        PSA_WIDTH = np.linalg.norm(box[1]-box[0])
-        PSA_HEIGHT = np.linalg.norm(box[3]-box[0])
+        PSA_WIDTH = int(np.linalg.norm(box[1]-box[0]))
+        PSA_HEIGHT = int(np.linalg.norm(box[3]-box[0]))
         aligned_box = np.float32([[0, 0], [PSA_WIDTH, 0], [PSA_WIDTH, PSA_HEIGHT], [0, PSA_HEIGHT]])
         M = cv2.getPerspectiveTransform(box, aligned_box)
-        cropped_img = cv2.warpPerspective(image[self.shape[0]//4:,:], M, (math.ceil(PSA_WIDTH), math.ceil(PSA_HEIGHT)))
-
+        cropped_img = cv2.warpPerspective(inputs_img[0][:506, :405], M, (PSA_WIDTH, PSA_HEIGHT))
         return cropped_img
 
     def rearrange_box(self, box):
@@ -155,24 +197,24 @@ class VGG16PreProcessor(object):
         pts = np.zeros_like(box)
         cons = 300.0
         for p in box:
-	        if p[0] <= cons and p[1] <= cons:
-	        	pts[0] = p
-	        elif p[1] <= cons:
-	        	pts[1] = p
-	        elif p[0] <= cons:
-	        	pts[3] = p
-	        else:
-	        	pts[2] = p
+            if p[0] <= cons and p[1] <= cons:
+                pts[0] = p
+            elif p[1] <= cons:
+                pts[1] = p
+            elif p[0] <= cons:
+                pts[3] = p
+            else:
+                pts[2] = p
         return pts
 
-    def crop_card_for_light_image(self, image : np.ndarray):
-        """Extract cards from images with high lighting
+    def extract_contour_for_pop_image(self, image : np.ndarray) -> np.ndarray:
+        """Extract cards from images
 
         Args:
             image (np.ndarray): [description]
 
         Returns:
-            np.ndarray: output
+            [type]: [description]
         """
         # to grayscale image
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
@@ -205,7 +247,7 @@ class VGG16PreProcessor(object):
         else:
             return None
 
-    def crop_card_for_dark_image(self, image : np.ndarray):
+    def extract_contour_for_dim_image(self, image : np.ndarray) -> np.ndarray:
         """Extract cards from images with dark light
 
         Args:
@@ -253,30 +295,3 @@ class VGG16PreProcessor(object):
             return image[int(y) : int(y + h), int(x) : int(x + w)]
         else:
             return None
-
-    def crop(self,image : np.ndarray) -> np.ndarray:
-        """crop card image
-
-        Args:
-            image (np.ndarray): [description]
-
-        Returns:
-            np.ndarray: [description]
-        """
-        # crop card
-        card_pop = self.crop_card_for_light_image(image)
-        card_dim = self.crop_card_for_dark_image(image)
-        if card_pop is not None or card_dim is not None:
-            if card_dim is None:
-                card = card_pop
-            elif card_pop is None:
-                card = card_dim
-            else:
-                if card_dim.shape[0] * card_dim.shape[1] < card_pop.shape[0] * card_pop.shape[1]:
-                    card = card_dim
-                else:
-                    card = card_pop
-        else:
-            card = self.crop_image(image)
-
-        return card

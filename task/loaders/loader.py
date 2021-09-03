@@ -151,6 +151,7 @@ class GraderImageLoader(object):
                     else:
                         return (identifier, None)
                 except:
+                    print(traceback.format_exc())
                     return (identifier, None)
             results = [_format_images(name) for name in tqdm(file_names)]
         results = [x for x in results if x is not None]
@@ -315,6 +316,7 @@ class GraderImageLoader(object):
             else:
                 num_repeat[identifier] = 1
             np.save(os.path.join(root_train_path,f'{identifier}_{repetition}.npy'), train_image)
+            # cv2.imwrite(os.path.join(root_train_path,f'{identifier}_{repetition}.png'), train_image)
                 
     def load(self, score_type : str):
         """Load data from preprocessed_data
@@ -458,11 +460,21 @@ class UNETDataLoader(object):
         self.test_pivot = 0
         self.num_batch4test = -1
 
+        self.mask_path = os.path.join("data", "mask.png")
+        self.mask = None
+
         
-    def load(self):
+    def load(self, mask=True):
         """Load images paths
         """
         self.image_paths = [x[0] for x in os.walk(self.data_path)][1:]
+        if mask:
+            mask_img = cv2.imread(self.mask_path, cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0 * 4
+            mask_img[mask_img < 1] = 1.0
+            mask_img = np.repeat(mask_img[np.newaxis, :, :], self.batch_size, axis=0)
+            self.mask = np.zeros([self.batch_size, 512, 512, 1], np.float32)
+            self.mask[:, :506, :405] = np.expand_dims(mask_img, -1)
+            self.mask = tf.convert_to_tensor(self.mask)
 
     def next_train_batch(self):
         """Get next train batch
