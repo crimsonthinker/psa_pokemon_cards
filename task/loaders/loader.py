@@ -45,6 +45,8 @@ class GraderImageLoader(object):
         self._preprocessed_dataset_path = 'preprocessed_data'
         ensure_dir(self._preprocessed_dataset_path)
 
+        self.origin_img_height = kwargs.get('origin_img_height', 3147)
+        self.origin_img_width = kwargs.get('origin_img_width', 1860)
         # Fixed ratio obtained from Pokemon PSA card
         self.img_width = kwargs.get('img_width', 128)
         self.img_height = kwargs.get('img_height', 215)
@@ -91,7 +93,9 @@ class GraderImageLoader(object):
                 logging.disable(logging.WARNING) 
                 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
                 results = []
-                cropper = VGG16PreProcessor()
+                cropper = VGG16PreProcessor(self.origin_img_height,
+                                            self.origin_img_width,
+                                            3)
                 for name in file_names:
                     try:
                         folders = name.split("/")

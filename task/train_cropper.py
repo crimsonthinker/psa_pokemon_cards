@@ -133,9 +133,9 @@ class UNETTrainer():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--origin_img_height", type=int, default=2698, nargs='?',
+    parser.add_argument("--origin_img_height", type=int, default=3147, nargs='?',
         help="Origin image height for the training session")
-    parser.add_argument("--origin_img_width", type=int, default=1620, nargs='?',
+    parser.add_argument("--origin_img_width", type=int, default=1860, nargs='?',
         help="Original image width for the training session")
     parser.add_argument("--img_height", type=int, default=512, nargs='?',
         help="Image height for the training session")
