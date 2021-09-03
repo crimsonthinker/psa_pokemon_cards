@@ -38,7 +38,7 @@ class GraderImageLoader(object):
         """
         self._train_directory = kwargs.get('train_directory', None)
 
-        self._grade_path = kwargs.get('grade_path', os.path.join('data', 'grades.csv'))
+        self._grade_path = kwargs.get('grade_path', os.path.join(self._train_directory, 'grades.csv'))
         self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
         self._grades.index = [str(x) for x in self._grades.index]
 
