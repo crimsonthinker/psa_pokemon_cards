@@ -13,6 +13,7 @@ import ray
 import traceback
 from ray.actor import ActorHandle
 import random
+from PIL import ImageEnhance, Image
 
 from utils.ray_progress_bar import ProgressBar
 from utils.utilities import *
@@ -446,6 +447,8 @@ class UNETDataLoader(object):
 	def dataparser(self, img_path):
 		input_f = cv2.imread(os.path.join(img_path, "front.jpg"), cv2.IMREAD_COLOR).astype(np.float32)
 		input_b = cv2.imread(os.path.join(img_path, "back.jpg"), cv2.IMREAD_COLOR).astype(np.float32)
+		if np.random.rand() > 0.75:
+			input_f = self.randomColor(input_f)
 		### Normalize Pixel Value For Each RGB Channel
 		for i in range(3):
 			input_f[:, :, i]	=	(input_f[:, :, i] - input_f[:, :, i].mean()) / np.sqrt(input_f[:, :, i].var() + 0.001)
@@ -453,3 +456,16 @@ class UNETDataLoader(object):
 		gtr_f = cv2.imread(os.path.join(img_path, "gtr_front.jpg"), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0
 		gtr_b = cv2.imread(os.path.join(img_path, "gtr_back.jpg"), cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0
 		return [input_f, input_b], [np.expand_dims(gtr_f, -1), np.expand_dims(gtr_b, -1)]
+
+	def randomColor(self, image):
+		PIL_image = Image.fromarray((image).astype(np.uint8))
+		random_factor = np.random.randint(0, 31) / 10.
+		color_image = ImageEnhance.Color(PIL_image).enhance(random_factor)
+		random_factor = np.random.randint(10, 21) / 10.
+		brightness_image = ImageEnhance.Brightness(color_image).enhance(random_factor)
+		random_factor = np.random.randint(10, 21) / 10.
+		contrast_image = ImageEnhance.Contrast(brightness_image).enhance(random_factor)
+		random_factor = np.random.randint(0, 31) / 10.
+		out = np.array(ImageEnhance.Sharpness(contrast_image).enhance(random_factor))
+		out = out
+		return out
