@@ -10,15 +10,9 @@ import json
 from models.unet import UNET
 from task.loaders import UNETDataLoader
 
-class UNETTrainer():
-    """Trainer classs for UNET
-    """
-    def __init__(self, args):
-        """init function
 
-        Args:
-            args: argparse aurgument 
-        """
+class UNETTrainer():
+    def __init__(self, args):
         self.model = UNET((args.img_height, args.img_width, args.dim))
         self.dataloader = UNETDataLoader(
             batch_size = args.batch_size,
@@ -40,14 +34,9 @@ class UNETTrainer():
 
         self.pretrained_model_path = os.path.join('checkpoint/cropper/pretrained/checkpoint')
 
-        self._logger = get_logger("UNETTrainer")
+        self.val_ratio = args.val_ratio
 
-    def train(self, from_pretrained : bool = True):
-        """Training function
-
-        Args:
-            from_pretrained (bool, optional): begin training function from pretrained. Defaults to True.
-        """
+    def train(self, from_pretrained = True):
         self.history = []
         self.dataloader.load(mask=True)
         self.dataloader.split(ratio = 1 - self.val_ratio)
@@ -95,7 +84,7 @@ class UNETTrainer():
                                 np.mean(train_loss), np.mean(train_accuracy), np.mean(train_iou), 
                                 np.mean(test_loss), np.mean(test_accuracy), np.mean(test_iou)
             )
-            self._logger.info(template)
+            print(template)
             self.dataloader.shuffle()
             self.dataloader.reset()
 
@@ -148,6 +137,8 @@ if __name__ == '__main__':
         help="Number of epochs for training session")
     parser.add_argument("--batch_size", type=int, default=16, nargs='?',
         help="Batch size for training session")
+    parser.add_argument("--val_ratio", type=int, default=0.25, nargs='?',
+        help="Ratio of validation data")
     args = parser.parse_args()
 
     # train u net for card segmentation

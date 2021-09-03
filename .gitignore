@@ -3,9 +3,10 @@
 *.jpg
 *.png
 *.npy
-unet_labeled/*
-preprocessed_data
+
 data/*
+unet_labeled/*
+data/images/*
 unet_labeled/*
 preprocessed_data/*
 checkpoint/cropper/20*
@@ -13,4 +14,3 @@ checkpoint/grader/20*
 !checkpoint/cropper/pretrained/*
 !checkpoint/grader/pretrained/*
 .vscode/*
-__pycache__/
