@@ -34,7 +34,7 @@ class VGG16GraderSurface(VGG16GraderBase):
 
     def _define_meaty_layer(self, inputs):
         self._dense_0 = tf.keras.layers.Dense(64, activation = 'relu', kernel_regularizer = tf.keras.regularizers.l2(0.01))(inputs)
-        self._dense_1 = tf.keras.layers.Dense(32, activation = 'relu', kernel_regularizer = tf.keras.regularizers.l2(0.01))(self._dense_0)
-        self._dense_2 = tf.keras.layers.Dense(32, activation = 'relu', kernel_regularizer = tf.keras.regularizers.l2(0.01))(self._dense_1)
+        self._dense_1 = tf.keras.layers.Dense(64, activation = 'relu', kernel_regularizer = tf.keras.regularizers.l2(0.01))(self._dense_0)
+        self._dense_2 = tf.keras.layers.Dense(64, activation = 'relu', kernel_regularizer = tf.keras.regularizers.l2(0.01))(self._dense_1)
         self._dropout = tf.keras.layers.Dropout(0.3)(self._dense_2)
         return tf.keras.layers.Dense(1, activation = 'sigmoid')(self._dropout)
