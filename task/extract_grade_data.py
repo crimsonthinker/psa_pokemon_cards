@@ -9,18 +9,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_directory", type=str, default='data', nargs='?',
         help="Training directory")
-<<<<<<< HEAD
-    parser.add_argument("--img_height", type=int, default=512, nargs='?',
-=======
     parser.add_argument("--origin_img_height", type=int, default=3147, nargs='?',
         help="Origin image height for the training session")
     parser.add_argument("--origin_img_width", type=int, default=1860, nargs='?',
         help="Original image width for the training session")
-    parser.add_argument("--img_height", type=int, default=256, nargs='?',
->>>>>>> master
-        help="Image height for the training session")
-    parser.add_argument("--img_width", type=int, default=512, nargs='?',
-        help="Image width for the training session")
     parser.add_argument("--model_score_type", type=str, default=[], nargs='+',
         help="Score type of the model. Leave blank if run all.")
     parser.add_argument("--enable_ray", action='store_true', default = False,
@@ -38,8 +30,6 @@ if __name__ == '__main__':
         train_directory = args.train_directory,
         origin_img_height = args.origin_img_height,
         origin_img_width = args.origin_img_width,
-        img_height = args.img_height,
-        img_width = args.img_width,
         enable_ray = args.enable_ray)
 
     if len(args.model_score_type) == 0:

@@ -49,8 +49,8 @@ class GraderImageLoader(object):
 		self.origin_img_height = kwargs.get('origin_img_height', 3147)
 		self.origin_img_width = kwargs.get('origin_img_width', 1860)
 		# Fixed ratio obtained from Pokemon PSA card
-		self.img_width = kwargs.get('img_width', 128)
-		self.img_height = kwargs.get('img_height', 215)
+		self.img_width = kwargs.get('img_width', 512)
+		self.img_height = kwargs.get('img_height', 512)
 
 		self.max_score = 10
 
@@ -262,16 +262,20 @@ class GraderImageLoader(object):
 				max_height = max(front_height, back_height)
 				max_width = max(front_width, back_width)
 				front_card = pad_card(front_card, (max_height, max_width))
-				front_residual = pad_card(front_residual, (max_height, max_width))
 				back_card = pad_card(back_card, (max_height, max_width))
-				back_residual = pad_card(back_residual, (max_height, max_width))
+				
 				merge_image = np.concatenate((front_card, back_card), axis = 1) # merge
-				merge_residual = np.concatenate((front_residual, back_residual), axis = 1) # merge
+				if front_residual is not None and back_residual is not None:
+					front_residual = pad_card(front_residual, (max_height, max_width))
+					back_residual = pad_card(back_residual, (max_height, max_width))
+					merge_residual = np.concatenate((front_residual, back_residual), axis = 1) # merge
+				else:
+					merge_residual = None
 				return merge_image, merge_residual
 		elif back_card is not None:
 			return back_card, back_residual
 
-		return None
+		return None,None
 
 	def _oversampling(self, score_type, max_examples_per_score = 500):
 		"""Perform oversampling to prevent class imbalance
