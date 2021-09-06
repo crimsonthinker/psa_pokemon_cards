@@ -13,9 +13,9 @@ if __name__ == '__main__':
         help="Origin image height for the training session")
     parser.add_argument("--origin_img_width", type=int, default=1860, nargs='?',
         help="Original image width for the training session")
-    parser.add_argument("--img_height", type=int, default=256, nargs='?',
+    parser.add_argument("--img_height", type=int, default=512, nargs='?',
         help="Image height for the training session")
-    parser.add_argument("--img_width", type=int, default=256, nargs='?',
+    parser.add_argument("--img_width", type=int, default=512, nargs='?',
         help="Image width for the training session")
     parser.add_argument("--model_score_type", type=str, default=[], nargs='+',
         help="Score type of the model. Leave blank if run all.")

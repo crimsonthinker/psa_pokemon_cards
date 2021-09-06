@@ -146,7 +146,7 @@ class GraderImageLoader(object):
 					front_image = cv2.cvtColor(np.array(imread(front_image)), cv2.COLOR_BGR2RGB)
 					front_image = cropper.crop(front_image)
 					back_image = cropper.crop(back_image)
-					preprocessed_image, residual = self.__preprocess(back_image, front_image, score_type)
+					preprocessed_image, residual = self.__preprocess(front_image, back_image, score_type)
 					# append the preprocessed image
 					if preprocessed_image is not None:
 						resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
@@ -224,20 +224,20 @@ class GraderImageLoader(object):
 			# format card
 			if card is not None:
 				if score_type == 'Corners':
-					top_left = card[:200,:200, :]
-					top_right = card[:200,-200:,:]
-					bottom_left = card[-200:,:200,:]
-					bottom_right = card[-200:,-200:,:]
+					top_left = card[:25,:25, :]
+					top_right = card[:25,-25:,:]
+					bottom_left = card[-25:,:25,:]
+					bottom_right = card[-25:,-25:,:]
 					top = np.concatenate((top_left, top_right), axis = 1)
 					bottom = np.concatenate((bottom_left, bottom_right), axis = 1)
 					card = np.concatenate((top, bottom), axis = 0)
 					edg = cv2.Canny(card, 100, 200)
-					edg[100:300,100:300] = 0 # remove centering part
+					# edg[100:300,100:300] = 0 # remove centering part
 				elif score_type == 'Edges' or score_type == 'Centering':
-					left = rotate(card[:,:200,:], 180)
-					right = card[:,-200:,:]
-					top = rotate(card[:200,:,:],-90)
-					bottom = rotate(card[-200:,:,:],90)
+					left = rotate(card[:,:30,:], 180)
+					right = card[:,-30:,:]
+					top = rotate(card[:30,:,:],-90)
+					bottom = rotate(card[-30:,:,:],90)
 					max_height = max(left.shape[0],right.shape[0], top.shape[0], bottom.shape[0])
 					max_width = max(left.shape[1],right.shape[1], top.shape[1], bottom.shape[1])
 					# pad top and bottom 
@@ -245,7 +245,7 @@ class GraderImageLoader(object):
 					card = np.concatenate(obj, axis = 1)
 					edg = cv2.Canny(card, 100, 200)
 				elif score_type == 'Surface':
-					edg = cv2.Canny(card, 100, 200)
+					edg = None
 			return card, edg
 
 		
@@ -262,16 +262,20 @@ class GraderImageLoader(object):
 				max_height = max(front_height, back_height)
 				max_width = max(front_width, back_width)
 				front_card = pad_card(front_card, (max_height, max_width))
-				front_residual = pad_card(front_residual, (max_height, max_width))
 				back_card = pad_card(back_card, (max_height, max_width))
-				back_residual = pad_card(back_residual, (max_height, max_width))
+				
 				merge_image = np.concatenate((front_card, back_card), axis = 1) # merge
-				merge_residual = np.concatenate((front_residual, back_residual), axis = 1) # merge
+				if front_residual is not None and back_residual is not None:
+					front_residual = pad_card(front_residual, (max_height, max_width))
+					back_residual = pad_card(back_residual, (max_height, max_width))
+					merge_residual = np.concatenate((front_residual, back_residual), axis = 1) # merge
+				else:
+					merge_residual = None
 				return merge_image, merge_residual
 		elif back_card is not None:
 			return back_card, back_residual
 
-		return None
+		return None,None
 
 	def _oversampling(self, score_type, max_examples_per_score = 500):
 		"""Perform oversampling to prevent class imbalance

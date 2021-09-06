@@ -136,10 +136,11 @@ class VGG16PreProcessor(object):
 		image = cv2.resize(image, (self.shape[1], self.shape[0]), interpolation = cv2.INTER_AREA)
 		# Feed image to image to get mask
 		inputs_img = np.zeros([1, 512, 512, 3], np.float32)
-		origin_image = cv2.resize(image[self.shape[0]//4:,:], self.feed_size, interpolation = cv2.INTER_AREA).astype(np.float32)
+		origin_image = cv2.resize(image[self.shape[0]//4:,:], self.feed_size, interpolation = cv2.INTER_AREA)
+		float_origin_image = origin_image.astype(np.float32)
 		## Normalize Pixel Value For Each RGB Channel
 		for i in range(3):
-			inputs_img[0][:506, :405][:, :, i]	= (origin_image[:, :, i] - origin_image[:, :, i].mean()) / np.sqrt(origin_image[:, :, i].var() + 0.001)
+			inputs_img[0][:506, :405][:, :, i]	= (float_origin_image[:, :, i] - float_origin_image[:, :, i].mean()) / np.sqrt(float_origin_image[:, :, i].var() + 0.001)
 		preds = self.model(convert_to_tensor(inputs_img), training=False).numpy()
 		pred_mask = preds[0][:506, :405]
 		pred_mask[pred_mask>=0.5] = 1.0
