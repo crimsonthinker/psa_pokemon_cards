@@ -21,6 +21,8 @@ for img_path in image_paths:
 	else:
 		print(img_path)
 	image_name = os.path.split(img_path)[1]
-	print(image_name)
+	print('{}/@{}_{}'.format(image_name,
+							front_result.shape[0]/front_result.shape[1],
+							back_result.shape[0]/back_result.shape[1]))
 	# cv2.imwrite("{}/{}_front.jpg".format(save_path, image_name), front_result)
 	# cv2.imwrite("{}/{}_back.jpg".format(save_path, image_name), back_result)

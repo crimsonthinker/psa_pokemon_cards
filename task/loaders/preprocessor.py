@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import math
 import os
+from six import b
 from tqdm import tqdm
 import json
 
@@ -152,15 +153,17 @@ class VGG16PreProcessor(object):
 		c = np.concatenate(contours, axis=0)
 		rect = cv2.minAreaRect(c)
 		box = cv2.boxPoints(rect)
-		box = self.rearrange_box(box)
+		box = self.rearrange_box(box) * self.shape[1] // 405
 
+		box[:, 1] = box[:, 1] + self.shape[0]//4
+		
 		# Cropped image based on the mask
 		PSA_WIDTH = np.linalg.norm(box[1]-box[0])
 		PSA_HEIGHT = np.linalg.norm(box[3]-box[0])
 		aligned_box = np.float32([[0, 0], [PSA_WIDTH, 0], [PSA_WIDTH, PSA_HEIGHT], [0, PSA_HEIGHT]])
 		M = cv2.getPerspectiveTransform(box, aligned_box)
-		cropped_img = cv2.warpPerspective(origin_image, M, (math.ceil(PSA_WIDTH), math.ceil(PSA_HEIGHT)))
-
+		cropped_img = cv2.warpPerspective(image, M, (math.ceil(PSA_WIDTH), math.ceil(PSA_HEIGHT)))
+	
 		return cropped_img
 
 	def rearrange_box(self, box):
