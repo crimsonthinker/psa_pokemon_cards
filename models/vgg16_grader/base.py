@@ -116,16 +116,16 @@ class VGG16GraderBase(object):
 
         self._model = tf.keras.Model(inputs = self._inputs, outputs = self._outputs, name = self._model_name)
 
-        # lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-        #     initial_learning_rate = self.learning_rate,
-        #     decay_steps=10000,
-        #     decay_rate=0.01
-        # )
+        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+            initial_learning_rate = self.learning_rate,
+            decay_steps=10000,
+            decay_rate=0.01
+        )
 
         # using sparse categorical: maximal true value = index of the maximal predicted value
         self._model.compile(
             optimizer = tf.keras.optimizers.Adam(
-                learning_rate = self.learning_rate),
+                learning_rate = lr_schedule),
             loss = 'mae',
             metrics = [
                 'mean_absolute_error',
