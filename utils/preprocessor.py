@@ -107,7 +107,7 @@ class VGG16PreProcessor(object):
 
 		kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(16,27))
 		pred_mask = cv2.morphologyEx(pred_mask, cv2.MORPH_OPEN, kernel)
-												 
+										 
 		contours, hierarchy = cv2.findContours(image=pred_mask.astype(np.uint8), mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_SIMPLE)
 		c = np.concatenate(contours, axis=0)
 		rect = cv2.minAreaRect(c)
