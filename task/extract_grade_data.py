@@ -46,8 +46,8 @@ if __name__ == '__main__':
         image_dataset.preprocess(score_type)
 
         metadata[score_type] = {
-            'img_height' : args.img_height,
-            'img_width' : args.img_width,
+            'img_height' : 512,
+            'img_width' : 512,
             'failed_images_identifiers' : image_dataset.failed_images_identifiers
         }
 

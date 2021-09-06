@@ -49,8 +49,8 @@ class GraderImageLoader(object):
 		self.origin_img_height = kwargs.get('origin_img_height', 3147)
 		self.origin_img_width = kwargs.get('origin_img_width', 1860)
 		# Fixed ratio obtained from Pokemon PSA card
-		self.img_width = kwargs.get('img_width', 512)
-		self.img_height = kwargs.get('img_height', 512)
+		self.img_width = 512
+		self.img_height = 512
 
 		self.max_score = 10
 
@@ -105,8 +105,8 @@ class GraderImageLoader(object):
 						front_image = os.path.join(name, "front.jpg")
 						back_image = cv2.cvtColor(np.array(imread(back_image)), cv2.COLOR_BGR2RGB)
 						front_image = cv2.cvtColor(np.array(imread(front_image)), cv2.COLOR_BGR2RGB)
-						front_image = cropper.crop(front_image)
-						back_image = cropper.crop(back_image)
+						front_image = cropper.crop(front_image, score_type)
+						back_image = cropper.crop(back_image, score_type)
 						# append the preprocessed image
 						preprocessed_image, residual = self.__preprocess(front_image, back_image, score_type)
 						if preprocessed_image is not None:
@@ -144,8 +144,8 @@ class GraderImageLoader(object):
 					front_image = os.path.join(name, "front.jpg")
 					back_image = cv2.cvtColor(np.array(imread(back_image)), cv2.COLOR_BGR2RGB)
 					front_image = cv2.cvtColor(np.array(imread(front_image)), cv2.COLOR_BGR2RGB)
-					front_image = cropper.crop(front_image)
-					back_image = cropper.crop(back_image)
+					front_image = cropper.crop(front_image, score_type)
+					back_image = cropper.crop(back_image, score_type)
 					preprocessed_image, residual = self.__preprocess(front_image, back_image, score_type)
 					# append the preprocessed image
 					if preprocessed_image is not None:
@@ -325,6 +325,7 @@ class GraderImageLoader(object):
 			else:
 				num_repeat[identifier] = 1
 			np.save(os.path.join(root_train_path,f'{identifier}_{repetition}.npy'), train_image)
+
 				
 	def load(self, score_type : str):
 		"""Load data from preprocessed_data
