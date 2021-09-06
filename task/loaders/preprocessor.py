@@ -131,7 +131,6 @@ class VGG16PreProcessor(object):
 		Returns:
 			np.ndarray: cropped image
 		"""
-		origin_shape = image.shape
 		# Resize to a fix shape
 		image = cv2.resize(image, (self.shape[1], self.shape[0]), interpolation = cv2.INTER_AREA)
 		# Feed image to image to get mask
@@ -164,10 +163,7 @@ class VGG16PreProcessor(object):
 		aligned_box = np.float32([[0, 0], [PSA_WIDTH, 0], [PSA_WIDTH, PSA_HEIGHT], [0, PSA_HEIGHT]])
 		M = cv2.getPerspectiveTransform(box, aligned_box)
 		cropped_img = cv2.warpPerspective(image, M, (math.ceil(PSA_WIDTH), math.ceil(PSA_HEIGHT)))
-
-		# Resize to the original size
-		cv2.imshow("", cropped_img)
-		cv2.waitKey(0)
+	
 		return cropped_img
 
 	def rearrange_box(self, box):
