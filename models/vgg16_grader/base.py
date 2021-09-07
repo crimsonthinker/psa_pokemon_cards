@@ -22,16 +22,34 @@ from utils.constants import *
 from task.loaders import GraderImageLoader
 
 class VGG16GraderBase(object):
+    """A baseline grading model for individual aspect
+
+    Args:
+        object: python object
+    """
     def __init__(self, 
         grade_name : str,
         max_score : int = 10,
-        img_height : int = 256, 
-        img_width : int = 256, 
+        img_height : int = 512, 
+        img_width : int = 512, 
         dim : int = 3,
         learning_rate : float = 0.001,
         epochs : int = 10,
         clean_log : bool = False,
         clean_checkpoints : bool = False):
+        """Init function
+
+        Args:
+            grade_name (str): score type of the model. Currently, they are 'Surface', 'Centering', 'Corners' and 'Edges
+            max_score (int, optional): maximum score of the grading system. Defaults to 10.
+            img_height (int, optional): height of the input image. Defaults to 512.
+            img_width (int, optional): width of the input image. Defaults to 512.
+            dim (int, optional): dimension of the image. Defaults to 3.
+            learning_rate (float, optional): learning rate. Defaults to 0.001.
+            epochs (int, optional): number of training rounds. Defaults to 10.
+            clean_log (bool, optional): [description]. Defaults to False.
+            clean_checkpoints (bool, optional): [description]. Defaults to False.
+        """
 
         self._logger = get_logger(f"VGG16Grader{grade_name}")
         self._model_name = f'vgg16_grader_{grade_name}'
@@ -87,9 +105,12 @@ class VGG16GraderBase(object):
         pass
 
     def _construct(self):
+        """Construct main model
+        """
 
         self._inputs = tf.keras.Input(shape = (self.img_height, self.img_width, self.dim))
 
+        # Split the image into 2 flows
         if self.dim > 3:
             # Create an extra flow to extract tensor outside of rgb image
             self._image_sliced = tf.keras.layers.Lambda(lambda x : x[:,:,:,:3])(self._inputs)
@@ -104,7 +125,7 @@ class VGG16GraderBase(object):
         self._random_contrast = tf.keras.layers.experimental.preprocessing.RandomContrast(0.3)(self._random_rotation)
 
         self._base_model = VGG16(weights = 'imagenet', include_top = False)
-        # freeze the layer in VGG16
+        # freeze the layer in VGG16. Propagate, flatten and concatenate the output
         for layer in self._base_model.layers:
             layer.trainable = False
         self._base_model_outputs = self._base_model(self._random_contrast)
@@ -112,6 +133,7 @@ class VGG16GraderBase(object):
         if self._remains is not None:
             self._flatten_remains = self._define_remain_layer(self._remains)
             self._flatten_input = tf.keras.layers.Concatenate(axis = -1)([self._flatten_input, self._flatten_remains])
+        # go through several layers to output the final scores
         self._outputs = self._define_meaty_layer(self._flatten_input)
 
         self._model = tf.keras.Model(inputs = self._inputs, outputs = self._outputs, name = self._model_name)
@@ -134,9 +156,16 @@ class VGG16GraderBase(object):
         )
 
     def get_summary(self):
+        """Get summary of the model
+        """
         self._model.summary()
 
     def set_epoch(self, new_epoch : int):
+        """Set epoch of the model
+
+        Args:
+            new_epoch (int): number of training rounds
+        """
         self._epochs = new_epoch
 
     def train_and_evaluate(self, dataset : GraderImageLoader):
