@@ -76,3 +76,24 @@ python3 -m task.train_grader \
     --learning_rate [learning_rate] \ # learning rate for the model. Default as 0.001
     --model_score_type [list of score types] \ # List of score types. Currently it supports Centering, Surface, Edges, and Corners
 ```
+
+## Installation and usage
+
+Below are the steps required to install and run the grading components:
+
+- Install Miniconda based on your OS (https://docs.conda.io/en/latest/miniconda.html).
+
+- From the project's root folder, create a Conda environment (the default name for this environment is 'psa'):
+```
+conda env create -f environment.yml
+```
+- Activate the Conda environment:
+```
+conda activate psa
+```
+- Make sure that the checkpoints are available in folder "checkpoint" (which includes "cropper", "vgg16_grader_Centering", "vgg16_grader_Corners", "vgg16_grader_Edges", and "vgg16_grader_Surface").
+- Run this command to start Django web server:
+```
+python3 manage.py runserver
+```
+- From then, you can go to [this page](http://localhost:8000/evaluate/upload) to upload your image and get graded by the AI models.
