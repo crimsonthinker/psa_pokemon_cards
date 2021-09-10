@@ -10,7 +10,7 @@ data/images/*
 unet_labeled/*
 preprocessed_data/*
 checkpoint/cropper/20*
-checkpoint/grader/20*
+checkpoint/vgg16_*
 !checkpoint/cropper/pretrained/*
 !checkpoint/grader/pretrained/*
 .vscode/*
