@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Evaluate the Pokemon cards</title>
+</head>
+<body>
+    <div>
+        <p>Upload your images here</p>
+        <form method = "post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ front_form.as_p }}
+            {{ back_form.as_p }}
+            <button type="submit" name="submit">Evaluate</button>
+        </form>
+    </div>
+        <img src="{{ front_path }}" class="img-responsive" style="width: 20%; float: left; margin-right: 10px;" />
+        <img src="{{ back_path }}" class="img-responsive" style="width: 20%; float: left; margin-right: 10px;" />
+        <p>Centering: {{Centering}}</p>
+        <p>Corners: {{Corners}}</p>
+        <p>Edges: {{Edges}}</p>
+        <p>Surface: {{Surface}}</p
+    <div>
+        
+    </div>
+</body>
+</html>

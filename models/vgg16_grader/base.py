@@ -238,10 +238,7 @@ class VGG16GraderBase(object):
 
         # load the model
         self._root_path = os.path.join('checkpoint', self._model_name, max_datetime)
-        model = tf.keras.models.load_model(self._root_path)
-        self._data_augmentation = model.layers[0]
-        self._base_model = model.layers[1]
-        self._layer_only = model.layers[2]
+        self._model = tf.keras.models.load_model(self._root_path)
         #read the metadata
         metadata = json.load(open(os.path.join(self._root_path, 'metadata.json'), 'r'))
         self.grade_name = metadata['grade_name']
@@ -251,8 +248,6 @@ class VGG16GraderBase(object):
         self.dim = metadata['dim']
         self.learning_rate = metadata['learning_rate']
         self._epochs = metadata['epochs']
-        # reconstruct the model
-        self._construct()
 
     def get_checkpoint_path(self):
         return self._root_path

@@ -7,14 +7,12 @@ import cv2
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-from scipy.ndimage import rotate
 from pathlib import Path
 from tqdm import tqdm
 import ray
 import traceback
 from ray.actor import ActorHandle
 import random
-from typing import Tuple
 from PIL import ImageEnhance, Image
 
 from utils.ray_progress_bar import ProgressBar
@@ -37,11 +35,9 @@ class GraderImageLoader(object):
 		val_ratio [float] : ratio for validation split
 		enable_ray [bool] : Flag enabling multiprocessing approach for preprocessing module using Ray
 		"""
-		self._train_directory = kwargs.get('train_directory', None)
+		self._train_directory = kwargs.get('train_directory', '')
 
 		self._grade_path = kwargs.get('grade_path', os.path.join(self._train_directory, 'grades.csv'))
-		self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
-		self._grades.index = [str(x) for x in self._grades.index]
 
 		self._preprocessed_dataset_path = 'preprocessed_data'
 		ensure_dir(self._preprocessed_dataset_path)
@@ -108,7 +104,7 @@ class GraderImageLoader(object):
 						front_image = cropper.crop(front_image, score_type)
 						back_image = cropper.crop(back_image, score_type)
 						# append the preprocessed image
-						preprocessed_image, residual = self.__preprocess(front_image, back_image, score_type)
+						preprocessed_image, residual = cropper.preprocess(front_image, back_image, score_type)
 						if preprocessed_image is not None:
 							resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
 							if residual is not None:
@@ -146,7 +142,7 @@ class GraderImageLoader(object):
 					front_image = cv2.cvtColor(np.array(imread(front_image)), cv2.COLOR_BGR2RGB)
 					front_image = cropper.crop(front_image, score_type)
 					back_image = cropper.crop(back_image, score_type)
-					preprocessed_image, residual = self.__preprocess(front_image, back_image, score_type)
+					preprocessed_image, residual = cropper.preprocess(front_image, back_image, score_type)
 					# append the preprocessed image
 					if preprocessed_image is not None:
 						resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
@@ -164,117 +160,6 @@ class GraderImageLoader(object):
 		self._identifiers = [x[0] for x in results if x[1] is not None]
 		self._images = [x[1] for x in results if x[1] is not None]
 		self.failed_images_identifiers = [x[0] for x in results if x[1] is None]
-
-	def __preprocess(self, front_image : np.ndarray, back_image : np.ndarray, score_type : str) -> Tuple[np.ndarray, np.ndarray]:
-		"""Preprocess image by cropping content out of contour and merge image.
-		For each aspect, different preprocessing approach is used on the image
-
-
-		Args:
-			front_image (np.ndarray): front image of the card
-			back_image (np.ndarray): back image of the card
-			score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
-		Return:
-			(np.ndarray, np.ndarray) : A preprocessed image, with residual (if exist)
-		"""
-
-		def pad_card(image : np.ndarray, desire_shape : tuple) -> np.ndarray:
-			"""Pad card image to appropriate size
-
-			Args:
-				image (np.ndarray): card image
-				desire_shape (tuple): desired shape. Format as (height, width)
-
-			Returns:
-				np.ndarray: padded card image
-			"""
-			if image.ndim == 2:
-				height, width = image.shape
-			else:
-				height, width, _ = image.shape
-			desire_height = desire_shape[0]
-			desire_width = desire_shape[1]
-			top = int((desire_height - height) / 2)
-			bottom = int((desire_height - height) / 2) + ((desire_height - height) % 2)
-			left = int((desire_width - width) / 2)
-			right = int((desire_width - width) / 2) + ((desire_width - width) % 2)
-
-			return cv2.copyMakeBorder(
-				image, 
-				top, 
-				bottom, 
-				left, 
-				right, 
-				cv2.BORDER_CONSTANT,
-				None,
-				value = 0
-			)
-
-		def extract_card(card : np.ndarray, score_type : str) -> np.ndarray:
-			"""Extract card content using VGG16Preprocessor and preprocess it to appropriate format.
-
-			Args:
-				card (np.ndarray): card image
-				score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
-
-			Returns:
-				np.ndarray: cropped card image
-			"""
-
-			# format card
-			if card is not None:
-				if score_type == 'Corners':
-					top_left = card[:200,:200, :]
-					top_right = card[:200,-200:,:]
-					bottom_left = card[-200:,:200,:]
-					bottom_right = card[-200:,-200:,:]
-					top = np.concatenate((top_left, top_right), axis = 1)
-					bottom = np.concatenate((bottom_left, bottom_right), axis = 1)
-					card = np.concatenate((top, bottom), axis = 0)
-					edg = cv2.Canny(card, 100, 200)
-					edg[100:300,100:300] = 0 # remove centering part
-				elif score_type == 'Edges' or score_type == 'Centering':
-					left = rotate(card[:,:200,:], 180)
-					right = card[:,-200:,:]
-					top = rotate(card[:200,:,:],-90)
-					bottom = rotate(card[-200:,:,:],90)
-					max_height = max(left.shape[0],right.shape[0], top.shape[0], bottom.shape[0])
-					max_width = max(left.shape[1],right.shape[1], top.shape[1], bottom.shape[1])
-					obj = tuple([pad_card(x, (max_height, max_width)) for x in [left, right, top, bottom]])
-					card = np.concatenate(obj, axis = 1)
-					edg = cv2.Canny(card, 100, 200)
-				elif score_type == 'Surface':
-					edg = cv2.Canny(card, 100, 200)
-			return card, edg
-
-		
-		front_card, front_residual = extract_card(front_image, score_type)
-		back_card, back_residual = extract_card(back_image, score_type)
-
-		# If the aspect is 'Centering', only use the back image.
-		# Other wise merge the card
-		if score_type != 'Centering':
-			if front_card is not None and back_card is not None:
-				# merge two image
-				front_height, front_width, _ = front_card.shape
-				back_height, back_width, _ = back_card.shape
-				max_height = max(front_height, back_height)
-				max_width = max(front_width, back_width)
-				front_card = pad_card(front_card, (max_height, max_width))
-				back_card = pad_card(back_card, (max_height, max_width))
-				
-				merge_image = np.concatenate((front_card, back_card), axis = 1) # merge
-				if front_residual is not None and back_residual is not None:
-					front_residual = pad_card(front_residual, (max_height, max_width))
-					back_residual = pad_card(back_residual, (max_height, max_width))
-					merge_residual = np.concatenate((front_residual, back_residual), axis = 1) # merge
-				else:
-					merge_residual = None
-				return merge_image, merge_residual
-		elif back_card is not None:
-			return back_card, back_residual
-
-		return None,None
 
 	def _oversampling(self, score_type, max_examples_per_score = 500):
 		"""Perform oversampling to prevent class imbalance
@@ -424,6 +309,9 @@ class GraderImageLoader(object):
 		Args:
 			score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
 		"""
+
+		self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
+		self._grades.index = [str(x) for x in self._grades.index]
 		self._logger.info(f"Perform splitting")
 		self._preprocess(score_type)
 
