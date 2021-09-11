@@ -38,6 +38,8 @@ class GraderImageLoader(object):
 		self._train_directory = kwargs.get('train_directory', '')
 
 		self._grade_path = kwargs.get('grade_path', os.path.join(self._train_directory, 'grades.csv'))
+		self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
+		self._grades.index = [str(x) for x in self._grades.index]
 
 		self._preprocessed_dataset_path = 'preprocessed_data'
 		ensure_dir(self._preprocessed_dataset_path)
@@ -309,9 +311,6 @@ class GraderImageLoader(object):
 		Args:
 			score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
 		"""
-
-		self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
-		self._grades.index = [str(x) for x in self._grades.index]
 		self._logger.info(f"Perform splitting")
 		self._preprocess(score_type)
 
