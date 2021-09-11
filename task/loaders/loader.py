@@ -46,9 +46,8 @@ class GraderImageLoader(object):
 
 		self.origin_img_height = kwargs.get('origin_img_height', 3147)
 		self.origin_img_width = kwargs.get('origin_img_width', 1860)
-		# Fixed ratio obtained from Pokemon PSA card
-		self.img_width = 512
-		self.img_height = 512
+		self.img_width = kwargs.get("img_height", 512)
+		self.img_height = kwargs.get("img_width", 512)
 
 		self.max_score = 10
 
