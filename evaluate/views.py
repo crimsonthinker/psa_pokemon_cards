@@ -40,10 +40,10 @@ def image_view(request, evaluate = False):
                 # append the preprocessed image
                 preprocessed_image, residual = settings.CROPPER.preprocess(cropped_front_image, cropped_back_image, score_type)
                 if preprocessed_image is not None:
-                    resized_preprocessed_image = cv2.resize(preprocessed_image, (512, 512), cv2.INTER_AREA)
+                    resized_preprocessed_image = cv2.resize(preprocessed_image, (224, 224), cv2.INTER_AREA)
                     if residual is not None:
                         # concat the residual to the image
-                        residual = cv2.resize(residual, (512, 512), cv2.INTER_AREA)
+                        residual = cv2.resize(residual, (224, 224), cv2.INTER_AREA)
                         residual = np.expand_dims(residual, -1)
                         resized_preprocessed_image = np.concatenate([resized_preprocessed_image,residual], axis = 2)
                     scores[score_type] = round(settings.GRADERS[score_type].predict(resized_preprocessed_image)[0], 2)

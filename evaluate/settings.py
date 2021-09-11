@@ -14,6 +14,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 CROPPER = VGG16PreProcessor(512,512,3)
 
 ASPECTS = ['Centering', 'Surface', 'Corners', 'Edges']
+# ASPECTS = ['Centering', 'Corners', 'Edges']
 class_mapper = {
     'Centering' : VGG16GraderCentering,
     'Surface' : VGG16GraderSurface,
@@ -25,8 +26,8 @@ GRADERS = {}
 for score_type in ASPECTS:
     GRADERS[score_type] = class_mapper[score_type](
         max_score = 10.0,
-        img_height = 512,
-        img_width = 512,
+        img_height = 224,
+        img_width = 224,
         dim = 4, # default as 4 dim
         clean_log = False,
         clean_checkpoints = False
