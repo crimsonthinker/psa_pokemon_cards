@@ -272,50 +272,27 @@ class VGG16PreProcessor(object):
 		else:
 			return None
 
-	def crop(self,image : np.ndarray, score_type : str) -> np.ndarray:
+	def crop(self,image : np.ndarray) -> np.ndarray:
 		"""crop card image
 
 		Args:
 			image (np.ndarray): [description]
 			score_type (str): score type
-
-		Returns:
-			np.ndarray: [description]
 		"""
-		# crop card
-		card = None
-		if score_type == 'Surface':
-			card = self.crop_image(image)
-			ratio = (card.shape[0]/card.shape[1])
-			if ratio < 1.34  and ratio > 1.42:
-				card = None
-				card_pop = self.crop_card_for_light_image(image)
-				card_dim = self.crop_card_for_dark_image(image)
-				if card_pop is not None or card_dim is not None:
-					if card_dim is None:
-						card = card_pop
-					elif card_pop is None:
-						card = card_dim
-					else:
-						if card_dim.shape[0] * card_dim.shape[1] < card_pop.shape[0] * card_pop.shape[1]:
-							card = card_dim
-						else:
-							card = card_pop
-		else:
-			card_pop = self.crop_card_for_light_image(image)
-			card_dim = self.crop_card_for_dark_image(image)
-			if card_pop is not None or card_dim is not None:
-				if card_dim is None:
-					card = card_pop
-				elif card_pop is None:
+		card_pop = self.crop_card_for_light_image(image)
+		card_dim = self.crop_card_for_dark_image(image)
+		if card_pop is not None or card_dim is not None:
+			if card_dim is None:
+				card = card_pop
+			elif card_pop is None:
+				card = card_dim
+			else:
+				if card_dim.shape[0] * card_dim.shape[1] < card_pop.shape[0] * card_pop.shape[1]:
 					card = card_dim
 				else:
-					if card_dim.shape[0] * card_dim.shape[1] < card_pop.shape[0] * card_pop.shape[1]:
-						card = card_dim
-					else:
-						card = card_pop
-			else:
-				card = self.crop_image(image)
+					card = card_pop
+		else:
+			card = self.crop_image(image) # Using UNET
 		return card
 
 	def preprocess(self, front_image : np.ndarray, back_image : np.ndarray, score_type : str) -> Tuple[np.ndarray, np.ndarray]:

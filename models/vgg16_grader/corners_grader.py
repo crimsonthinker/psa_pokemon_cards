@@ -5,9 +5,9 @@ class VGG16GraderCorners(VGG16GraderBase):
     def __init__(
         self,        
         max_score : int = 10,
-        img_height : int = 256, 
-        img_width : int = 256, 
-        dim : int = 3,
+        img_height : int = 512, 
+        img_width : int = 512, 
+        dim : int = 4,
         learning_rate : float = 0.001,
         epochs : int = 10,
         clean_log : bool = False,
