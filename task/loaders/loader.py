@@ -1,23 +1,17 @@
-import collections
-from matplotlib.image import imread
 import glob
 import os
-import logging
+
 import cv2
 import tensorflow as tf
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from tqdm import tqdm
-import ray
-import traceback
-from ray.actor import ActorHandle
+
 import random
 from PIL import ImageEnhance, Image
+from utils.utilities import ensure_dir, get_logger
 
-from utils.ray_progress_bar import ProgressBar
-from utils.utilities import *
-from task.loaders.preprocessor import VGG16PreProcessor
+
 
 class GraderImageLoader(object):
 	"""An image preprocessor class for preprocessing image dataset
@@ -36,31 +30,22 @@ class GraderImageLoader(object):
 		enable_ray [bool] : Flag enabling multiprocessing approach for preprocessing module using Ray
 		"""
 		self._train_directory = kwargs.get('train_directory', '')
-
 		self._grade_path = kwargs.get('grade_path', os.path.join(self._train_directory, 'grades.csv'))
 		self._grades = pd.read_csv(self._grade_path, index_col = 'Identifier')
 		self._grades.index = [str(x) for x in self._grades.index]
 
 		self._preprocessed_dataset_path = 'preprocessed_data'
-		ensure_dir(self._preprocessed_dataset_path)
-
-		self.origin_img_height = kwargs.get('origin_img_height', 3147)
-		self.origin_img_width = kwargs.get('origin_img_width', 1860)
-		self.img_width = kwargs.get("img_height", 512)
-		self.img_height = kwargs.get("img_width", 512)
-
 		self.max_score = 10
 
 		self._logger = get_logger("GraderImageLoader")
 
 		self._batch_size = kwargs.get('batch_size', 8)
 		self._val_ratio = kwargs.get('val_ratio', 0.3)
-		self._enable_ray = kwargs.get('enable_ray', False)
+
 		self._images = None
 		self._images_file_name = None
 
 		self._paths = [] # list of file paths
-		self._identifiers = [] # list of identifiers (id)
 		self._identifier_scores = [] # list of identifier's score (of one aspect)
 		self._train_paths = [] # list of train file paths
 		self._train_identifiers = [] # list of train identifiers
@@ -68,151 +53,7 @@ class GraderImageLoader(object):
 		self._val_paths = [] # list of validation file path
 		self._val_identifiers = [] # list of validation identifiers
 		self._val_identifier_scores = [] # list of validation identifier's score
-		self.failed_images_identifiers = [] # list of unsucessfully preprocessed images
-
-	def _preprocess(self, score_type : str):
-		"""Split dataset into train and test dataset
-
-		Args:
-			score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
-		"""
-		# ensure directory
-		root_path = os.path.join(self._preprocessed_dataset_path, score_type)
-		ensure_dir(root_path)
-
-		#read images and extract card contents
-		self._images = []
-		self._identifiers = []
-		self.failed_images = []
-		file_names = list(glob.glob(os.path.join(self._train_directory, '*')))
-		if self._enable_ray:
-			@ray.remote
-			def _format_images(file_names: np.ndarray, pba : ActorHandle):
-				logging.disable(logging.WARNING) 
-				os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-				results = []
-				cropper = VGG16PreProcessor(self.origin_img_height,
-											self.origin_img_width,
-											3)
-				for name in file_names:
-					try:
-						folders = name.split("/")
-						identifier = folders[-1]
-						back_image = os.path.join(name, "back.jpg")
-						front_image = os.path.join(name, "front.jpg")
-						back_image = cv2.cvtColor(np.array(imread(back_image)), cv2.COLOR_BGR2RGB)
-						front_image = cv2.cvtColor(np.array(imread(front_image)), cv2.COLOR_BGR2RGB)
-						front_image = cropper.crop(front_image)
-						back_image = cropper.crop(back_image)
-						# append the preprocessed image
-						preprocessed_image, residual = cropper.preprocess(front_image, back_image, score_type)
-						if preprocessed_image is not None:
-							resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
-							if residual is not None:
-								# concat the residual to the image
-								residual = cv2.resize(residual, (self.img_width, self.img_height), cv2.INTER_AREA)
-								residual = np.expand_dims(residual, -1)
-								resized_preprocessed_image = np.concatenate([resized_preprocessed_image,residual], axis = 2)
-							results.append((identifier, resized_preprocessed_image))
-						else:
-							results.append((identifier, None))
-					except:
-						results.append((identifier, None))
-					pba.update.remote(1)
-					return results
-			ray.init()
-			num_chunks = int(len(file_names) / 4)
-			pb = ProgressBar(num_chunks)
-			actor = pb.actor
-			results = [_format_images.remote(f_names, actor) for f_names in np.array_split(file_names,num_chunks)]
-			pb.print_until_done()
-			results = ray.get(results)
-			results = np.concatenate(results)
-			ray.shutdown()
-		else:
-			cropper = VGG16PreProcessor(self.origin_img_height,
-										self.origin_img_width,
-										3)
-			def _format_images(name : str):
-				try:
-					folders = name.split("/")
-					identifier = folders[-1]
-					back_image = os.path.join(name, "back.jpg")
-					front_image = os.path.join(name, "front.jpg")
-					back_image = cv2.cvtColor(np.array(imread(back_image)), cv2.COLOR_BGR2RGB)
-					front_image = cv2.cvtColor(np.array(imread(front_image)), cv2.COLOR_BGR2RGB)
-					front_image = cropper.crop(front_image)
-					back_image = cropper.crop(back_image)
-					preprocessed_image, residual = cropper.preprocess(front_image, back_image, score_type)
-					# append the preprocessed image
-					if preprocessed_image is not None:
-						resized_preprocessed_image = cv2.resize(preprocessed_image, (self.img_width, self.img_height), cv2.INTER_AREA)
-						if residual is not None:
-							residual = cv2.resize(residual, (self.img_width, self.img_height), cv2.INTER_AREA)
-							residual = np.expand_dims(residual, -1)
-							resized_preprocessed_image = np.concatenate([resized_preprocessed_image,residual], axis = 2)
-						return (identifier, resized_preprocessed_image)
-					else:
-						return (identifier, None)
-				except:
-					return (identifier, None)
-			results = [_format_images(name) for name in tqdm(file_names)]
-		results = [x for x in results if x is not None]
-		self._identifiers = [x[0] for x in results if x[1] is not None]
-		self._images = [x[1] for x in results if x[1] is not None]
-		self.failed_images_identifiers = [x[0] for x in results if x[1] is None]
-
-	def _oversampling(self, score_type, max_examples_per_score = 500):
-		"""Perform oversampling to prevent class imbalance
-
-		Args:
-			score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
-			max_examples_per_score (int, optional): Maximum examples per class. Defaults to 500.
-		"""
-
-		image_map = {self._identifiers[x] : self._images[x] for x in range(len(self._identifiers))}
-		scores_table = self._grades[score_type]
-		counter = collections.defaultdict(list)
-		highest_num_examples = 0
-
-		# get the highest number of examples per class
-		for x in self._identifiers:
-			score = scores_table.loc[x]
-			counter[score].append(x)
-			if highest_num_examples < len(counter[score]):
-				highest_num_examples = len(counter[score])
-		if max_examples_per_score < highest_num_examples:
-			highest_num_examples = max_examples_per_score
-
-		# Perform oversampling with the highest_num_examples
-		for score in counter:
-			if len(counter[score]) < highest_num_examples:
-				# add images in self._images and self._identifiers
-				for _ in range(highest_num_examples - len(counter[score])):
-					add_id = random.choice(counter[score])
-					self._images.append(image_map[add_id])
-					self._identifiers.append(add_id)
-
-	def _save(self, score_type):
-		"""data to preprocessed folder
-
-		Args:
-			score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
-		"""
-		root_train_path = os.path.join(self._preprocessed_dataset_path, score_type)
-		ensure_dir(root_train_path)
-		num_repeat = {}
-		self._identifiers = [f'{x}_0' for x in self._identifiers]
-		for i, train_image in enumerate(self._images):
-			identifier,repetition = self._identifiers[i].split("_")
-			if identifier in num_repeat:
-				repetition = num_repeat[identifier]
-				num_repeat[identifier] += 1
-			else:
-				num_repeat[identifier] = 1
-			np.save(os.path.join(root_train_path,f'{identifier}_{repetition}.npy'), train_image)
-
-				
+			
 	def load(self, score_type : str):
 		"""Load data from preprocessed_data
 
@@ -303,21 +144,6 @@ class GraderImageLoader(object):
 			list[str]: list of validation scores
 		"""
 		return self._val_identifier_scores
-
-	def preprocess(self, score_type : str):
-		"""Preprocess data
-
-		Args:
-			score_type (string): score aspect for image loader. It is either 'Centering', 'Corners', 'Edges', or 'Surface'.
-		"""
-		self._logger.info(f"Perform splitting")
-		self._preprocess(score_type)
-
-		self._logger.info(f"Oversampling data")
-		self._oversampling(score_type)
-
-		self._logger.info("Save dataset to folder")
-		self._save(score_type)
 
 
 class UNETDataLoader(object):

@@ -7,14 +7,12 @@ if __name__ == '__main__':
         help="Origin image height for the training session")
     parser.add_argument("--origin_img_width", type=int, default=1860, nargs='?',
         help="Original image width for the training session")
-    parser.add_argument("--dim", type=int, default=3, nargs='?',
-        help="Image didmension for the training session")
     args = parser.parse_args()
 
     processor = UNETPreProcessor(
         args.origin_img_height,
         args.origin_img_width,
-        args.dim
+        3
     )
     processor.load()
     processor.operate()

@@ -34,47 +34,42 @@ The commands for each of these tasks are as follows:
 ```
 To preprocess data for cropper model
 python3 -m task.extract_cropper_data \
-    --origin_img_height [defaults as 3147] \ # Origin height of the image
-    --origin_img_width [defaults as 1860]\ # Origin width of the image
-    --dim [defaults as 3] # dimension of the image
-Data will be saved in preprocessed_data/UNET
+    --origin_img_height [integer, defaults as 3147] \ # Origin height of the image
+    --origin_img_width [integer, defaults as 1860]\ # Origin width of the image
 ```
 
 ```
 To preprocess data for grading models
 python3 -m task.extract_grade_data \
-    --train_directory [train_directory] \ # directory containing card images.
-    --origin_img_height [int] \ # height of the original trading card image.
-    --origin_img_width [int] \ # width of the original trading card image.
-    --model_score_type [str] \ #score type to extract data.
-    --enable_ray # choosing multiprocessing approach to preprocess data 
+    --train_directory [string, default as 'data'] \ # directory containing card images.
+    --grade_path [string, default as '[train_directory]/grades.csv'] \ # csv file path containing grades of card images
+    --origin_img_height [integer, default as 3147] \ # height of the original trading card image.
+    --origin_img_width [integer, default as 1680] \ # width of the original trading card image.
+    --model_score_type [list of strings] \ #score type to extract data. Currently it supports Centering, Surface, Edges, and Corners.
+    --enable_ray [boolean flag] # add this flag if you want to preprocess data using with multiplee processes. 
 Data will be saved in preprocessed_data/[score_type]
 ```
 
 ```
 To train cropping model
 python3 -m task.train_cropper \
-    --origin_img_height [int] \ # original height of the image
-    --origin_img_width [int] \ # original width of the image
-    --img_height [int] \ # output image height of the model
-    --img_width [int] \ # output image width of the model
-    --dim [int] \ # dimension of the image
-    --epochs [int] \ # number of training rounds
-    --batch_size [int] \ # batch size
-    --val_ratio [float] # ratio of the validation dataset
+    --origin_img_height [integer, default as 3147] \ # original height of the image
+    --origin_img_width [integer, default as 1680] \ # original width of the image
+    --epochs [integer, default as 80] \ # number of training rounds
+    --batch_size [integer, default as 16] \ # batch size
+    --val_ratio [float, default as 0.25] # ratio of the validation dataset
 ```
 
 ```
 python3 -m task.train_grader \
-    --clean_log \ # enable this if log data needs to be cleaned
-    --clean_checkpoints \ # enable this if model checkpoints need to be cleaned
-    --img_height [img_height] \ # image height for model construction. Default as 512
-    --img_width [img_width] \ # image width for model construction. Default as 512
-    --batch_size [batch_size] \ # batch size for dataset
-    --epochs [epochs] \ # Number of training rounds for the model.
-    --val_ratio [float] \ # ratio of the validation dataset
-    --learning_rate [learning_rate] \ # learning rate for the model. Default as 0.001
-    --model_score_type [list of score types] \ # List of score types. Currently it supports Centering, Surface, Edges, and Corners
+    --grade_path [string, default as 'data/grades.csv'] \ # csv file path containing grades of card images
+    --batch_size [integer, default as 32] \ # batch size for dataset
+    --epochs [integer, default as 50] \ # Number of training rounds for the model.
+    --val_ratio [float, default as 0.25] \ # ratio of the validation dataset
+    --learning_rate [float, default as 0.001] \ # learning rate for the model. Default as 0.001
+    --model_score_type [list of strings] \ # List of score types. Currently it supports Centering, Surface, Edges, and Corners.
+    --clean_log [boolean flag] \ # enable this flag if log data needs to be cleaned
+    --clean_checkpoints [boolean flag] \ # enable this flag if model checkpoints need to be cleaned
 ```
 
 ## Installation and usage

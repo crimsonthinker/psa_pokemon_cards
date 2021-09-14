@@ -2,13 +2,15 @@ import argparse
 import json
 import os
 
-from task.loaders import GraderImageLoader
+from task.loaders import VGG16PreProcessor
 from utils.utilities import get_logger
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_directory", type=str, default='data', nargs='?',
         help="Training directory")
+    parser.add_argument("--grade_path", type=str, default='data/grades.csv', nargs='?',
+        help="Path to grade data")
     parser.add_argument("--origin_img_height", type=int, default=3147, nargs='?',
         help="Origin image height for the training session")
     parser.add_argument("--origin_img_width", type=int, default=1860, nargs='?',
@@ -26,8 +28,9 @@ if __name__ == '__main__':
         metadata = {}
 
     # run raining session
-    image_dataset = GraderImageLoader(
+    image_dataset = VGG16PreProcessor(
         train_directory = args.train_directory,
+        grade_path = args.grade_path,
         origin_img_height = args.origin_img_height,
         origin_img_width = args.origin_img_width,
         enable_ray = args.enable_ray)
@@ -43,11 +46,11 @@ if __name__ == '__main__':
     for score_type in score_types:
         logger.info(f"Generating data of score {score_type}")
         # load the image from train directory
-        image_dataset.preprocess(score_type)
+        image_dataset.work(score_type)
 
         metadata[score_type] = {
-            'img_height' : 512,
-            'img_width' : 512,
+            'img_height' : 224,
+            'img_width' : 224,
             'failed_images_identifiers' : image_dataset.failed_images_identifiers
         }
 

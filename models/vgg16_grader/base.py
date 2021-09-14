@@ -22,7 +22,7 @@ from utils.constants import *
 from task.loaders import GraderImageLoader
 
 class VGG16GraderBase(object):
-    """A baseline grading model for individual aspect
+    """A baseline grading model class for individual aspect
 
     Args:
         object: python object
@@ -30,8 +30,8 @@ class VGG16GraderBase(object):
     def __init__(self, 
         grade_name : str,
         max_score : int = 10,
-        img_height : int = 512, 
-        img_width : int = 512, 
+        img_height : int = 224, 
+        img_width : int = 224, 
         dim : int = 3,
         learning_rate : float = 0.001,
         epochs : int = 10,
@@ -42,8 +42,8 @@ class VGG16GraderBase(object):
         Args:
             grade_name (str): score type of the model. Currently, they are 'Surface', 'Centering', 'Corners' and 'Edges
             max_score (int, optional): maximum score of the grading system. Defaults to 10.
-            img_height (int, optional): height of the input image. Defaults to 512.
-            img_width (int, optional): width of the input image. Defaults to 512.
+            img_height (int, optional): height of the input image. Defaults to 224.
+            img_width (int, optional): width of the input image. Defaults to 224.
             dim (int, optional): dimension of the image. Defaults to 3.
             learning_rate (float, optional): learning rate. Defaults to 0.001.
             epochs (int, optional): number of training rounds. Defaults to 10.
@@ -98,9 +98,6 @@ class VGG16GraderBase(object):
     @abstractclassmethod
     def _define_remain_layer(self,inputs):
         """Define preprocess layer
-
-        Args:
-            inputs ([type]): [description]
         """
         pass
 
@@ -169,6 +166,11 @@ class VGG16GraderBase(object):
         self._epochs = new_epoch
 
     def train_and_evaluate(self, dataset : GraderImageLoader):
+        """Train and evaluate the model
+
+        Args:
+            dataset (GraderImageLoader): dataset used for training
+        """
         try:
             self._logger.info(f"""
                 Traning VGG16ImageGrader:
@@ -191,6 +193,8 @@ class VGG16GraderBase(object):
             self._logger.info("Interrupt training session")
 
     def save_history(self):
+        """Save training history of the model
+        """
         self._logger.info(f"Saving history in {self._root_path}")
         ensure_dir(self._root_path)
 
@@ -199,6 +203,8 @@ class VGG16GraderBase(object):
             json.dump(self._history.history, f, indent = 4)
 
     def save_metadata(self):
+        """Save metadata of the model in checkpoint folder
+        """
         # Update new root path
         self._logger.info(f"Saving metadata in {self._root_path}")
         ensure_dir(self._root_path)
@@ -218,7 +224,10 @@ class VGG16GraderBase(object):
 
 
     def load(self, timestamp : str = None):
-        """Load the newest checkpoints in the folder
+        """Load the checkpoint of the model, given the timestamp
+
+        Args:
+            timestamp (str, optional): timestamp of the checkpoint. Defaults to None.
         """
         max_datetime = None
         if timestamp is None:
@@ -249,10 +258,24 @@ class VGG16GraderBase(object):
         self.learning_rate = metadata['learning_rate']
         self._epochs = metadata['epochs']
 
-    def get_checkpoint_path(self):
+    def get_checkpoint_path(self) -> str:
+        """Return path of the checkpoint of the model
+
+        Returns:
+            str: path of checkpoint
+        """
         return self._root_path
 
     def predict(self, x : Union[np.ndarray, str, PrefetchDataset], batch_size = 32):
+        """Grade card images based on the aspect of the model
+
+        Args:
+            x (Union[np.ndarray, str, PrefetchDataset]): Input is either a numpy array of image(s), a string of file paths, or a PrefetchDataset (for evaluation)
+            batch_size (int, optional): batch size for prediction. Defaults to 32.
+
+        Returns:
+            result
+        """
         if isinstance(x, str):
             # glob files
             predicted_filenames = []

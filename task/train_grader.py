@@ -11,31 +11,28 @@ from models.vgg16_grader import VGG16GraderSurface
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--clean_log", action='store_true', default = False,
-        help="Clean log folder")
-    parser.add_argument("--clean_checkpoints", action='store_true', default = False,
-        help="Clean checkpoints folder of the model")
-    parser.add_argument("--img_height", type=int, default=256, nargs='?',
-        help="Image height for the training session")
-    parser.add_argument("--img_width", type=int, default=256, nargs='?',
-        help="Image width for the training session")
-    parser.add_argument("--batch_size", type=int, default=8, nargs='?',
+    parser.add_argument("--grade_path", type=str, default='data/grades.csv', nargs='?',
+        help="Path to grade csv file")
+    parser.add_argument("--batch_size", type=int, default=32, nargs='?',
         help="Batch size for training session")
-    parser.add_argument("--epochs", type=int, default=15, nargs='?',
+    parser.add_argument("--epochs", type=int, default=50, nargs='?',
         help="Number of epochs for training session")
     parser.add_argument("--val_ratio", type=int, default=0.25, nargs='?',
         help="Ratio of validation data")
     parser.add_argument("--learning_rate", type=float, default=0.001, nargs='?',
         help="Learning rate for the model")
     parser.add_argument("--model_score_type", type=str, default=[], nargs='+',
-        help="Score type of the model. Leave blank if run all.")
+        help="Score type of the model. Ignore if you want to train all grading models.")
+    parser.add_argument("--clean_log", action='store_true', default = False,
+        help="Clean log folder")
+    parser.add_argument("--clean_checkpoints", action='store_true', default = False,
+        help="Clean checkpoints folder of the model")
     args = parser.parse_args()
 
     # run raining session
     image_dataset = GraderImageLoader(
-        skip_preprocessing = True,
-        img_height = args.img_height,
-        img_width = args.img_width,
+        img_height = 224,
+        img_width = 224,
         batch_size = args.batch_size,
         val_ratio = args.val_ratio
     )
@@ -51,11 +48,8 @@ if __name__ == '__main__':
         score_types = ['Centering', 'Surface', 'Corners', 'Edges']
     else:
         score_types = args.model_score_type
-
-    logger = get_logger
-
+        
     for score_type in score_types:
-        print(f"Training dataset on score {score_type}")
         # load the image from train directory
         image_dataset.load(score_type)
 
@@ -63,15 +57,18 @@ if __name__ == '__main__':
 
         model = class_mapper[score_type](
             max_score = image_dataset.max_score,
-            img_height = args.img_height,
-            img_width = args.img_width,
-            dim = 4 if score_type in ['Centering', 'Edges', 'Corners'] else 3,
+            img_height = 224,
+            img_width = 224,
+            dim = 4,
             learning_rate = args.learning_rate,
             epochs = args.epochs,
             clean_log = args.clean_log,
             clean_checkpoints = args.clean_checkpoints
         )
-        model.load()
+
+        # If checkpoint is cleaned, no need to load most up-to-date checkpoint
+        if args.clean_checkpoints:
+            model.load()
 
         # train the model
         # new model already been saved in this function
@@ -91,6 +88,6 @@ if __name__ == '__main__':
         for identifier, (score, ground_truth_score) in zip(val_identifiers, zip(outputs, val_scores)):
             val_score_df.loc[identifier] = [score, ground_truth_score]
 
-        # save in checkpoint
-        val_score_df.to_csv(os.path.join(model.get_checkpoint_path(), 'val_result.csv'), index_label = 'Identifier')
+        # save result in analysis/validation_result/result/[score_type].csv
+        val_score_df.to_csv(os.path.join('analysis','validation_analysis','result', f'{score_type}.csv'), index_label = 'Identifier')
 

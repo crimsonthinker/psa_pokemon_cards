@@ -13,14 +13,14 @@ from task.loaders import UNETDataLoader
 
 class UNETTrainer():
     def __init__(self, args):
-        self.model = UNET((args.img_height, args.img_width, args.dim))
+        self.model = UNET()
         self.dataloader = UNETDataLoader(
             batch_size = args.batch_size,
             original_height = args.origin_img_height,
             original_width = args.origin_img_width,
-            dim = args.dim
+            dim = 3
         )
-        self.model.build(input_shape=(1, args.img_height, args.img_width, args.dim))
+        self.model.build(input_shape=(1, 512, 512, 3))
         
         self.optimizer = tf.keras.optimizers.Adam(lr=5e-5)
         self.loss = tf.keras.losses.BinaryCrossentropy()
@@ -127,12 +127,6 @@ if __name__ == '__main__':
         help="Origin image height for the training session")
     parser.add_argument("--origin_img_width", type=int, default=1860, nargs='?',
         help="Original image width for the training session")
-    parser.add_argument("--img_height", type=int, default=512, nargs='?',
-        help="Image height for the training session")
-    parser.add_argument("--img_width", type=int, default=512, nargs='?',
-        help="Image width for the training session")
-    parser.add_argument("--dim", type=int, default=3, nargs='?',
-        help="Image didmension for the training session")
     parser.add_argument("--epochs", type=int, default=80, nargs='?',
         help="Number of epochs for training session")
     parser.add_argument("--batch_size", type=int, default=16, nargs='?',

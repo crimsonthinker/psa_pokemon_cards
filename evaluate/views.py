@@ -29,8 +29,13 @@ def image_view(request, evaluate = False):
             front_image = cv2.cvtColor(np.array(imread(front_image_path)), cv2.COLOR_BGR2RGB)
             back_image = cv2.cvtColor(np.array(imread(back_image_path)), cv2.COLOR_BGR2RGB)
 
+            # crop the image
             cropped_front_image = settings.CROPPER.crop(front_image)
             cropped_back_image = settings.CROPPER.crop(back_image)
+
+            # resize the imaage to uniform size
+            resized_front_image = cv2.resize(cropped_front_image, (3147, 1860), cv2.INTER_AREA)
+            resized_back_image = cv2.resize(cropped_back_image, (3147, 1860), cv2.INTER_AREA)
 
             # final scores for each aspect
             scores = {}
@@ -38,7 +43,7 @@ def image_view(request, evaluate = False):
             # Crop content
             for score_type in settings.ASPECTS:
                 # append the preprocessed image
-                preprocessed_image, residual = settings.CROPPER.preprocess(cropped_front_image, cropped_back_image, score_type)
+                preprocessed_image, residual = settings.CROPPER.preprocess(resized_front_image, resized_back_image, score_type)
                 if preprocessed_image is not None:
                     resized_preprocessed_image = cv2.resize(preprocessed_image, (224, 224), cv2.INTER_AREA)
                     if residual is not None:
