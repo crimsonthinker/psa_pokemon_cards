@@ -76,15 +76,11 @@ python3 -m task.train_grader \
 
 Below are the steps required to install and run the grading components:
 
-- Install Miniconda based on your OS (https://docs.conda.io/en/latest/miniconda.html).
+- Install Python based on your OS.
 
-- From the project's root folder, create a Conda environment (the default name for this environment is 'psa'):
+- Install neccessary libraries:
 ```
-conda env create -f environment.yml
-```
-- Activate the Conda environment:
-```
-conda activate psa
+pip install -r requirements.txt
 ```
 - Make sure that the checkpoints are available in folder "checkpoint" (which includes "cropper", "vgg16_grader_Centering", "vgg16_grader_Corners", "vgg16_grader_Edges", and "vgg16_grader_Surface").
 - Run this command to start Django web server:
