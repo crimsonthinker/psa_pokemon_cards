@@ -125,10 +125,10 @@ class VGG16PreProcessor(object):
 		object ([type]): [description]
 	"""
 	def __init__(self,
-		train_directory : str,
-		grade_path : str,
-		origin_img_height : int,
-		origin_img_width : int,
+		train_directory : str = None,
+		grade_path : str = None,
+		origin_img_height : int = None,
+		origin_img_width : int = None,
 		enable_ray : bool = False):
 		self._logger = get_logger("VGG16Preprocessor")
 		self.shape = (origin_img_height, origin_img_width, 3) # Default shape
