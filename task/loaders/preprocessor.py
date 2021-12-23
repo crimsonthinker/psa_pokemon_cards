@@ -134,10 +134,10 @@ class VGG16PreProcessor(object):
 		self.shape = (origin_img_height, origin_img_width, 3) # Default shape
 		self.feed_size = (405, 506) # feed shape
 		self._enable_ray = enable_ray
+		self.pretrained_model_path = os.path.join('checkpoint/cropper/pretrained/checkpoint')
 		if not self._enable_ray: # since RAY cannot pickle weakref object
 			self.model = UNET() #Unet model
 			self.model.load_weights(self.pretrained_model_path)
-		self.pretrained_model_path = os.path.join('checkpoint/cropper/pretrained/checkpoint')
 		self._train_directory = train_directory
 		self._preprocessed_dataset_path = 'preprocessed_data'
 		ensure_dir(self._preprocessed_dataset_path)
